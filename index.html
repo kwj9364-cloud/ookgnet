@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>다이컷 마그넷 보드</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MAGNET OOK">
+  <meta name="theme-color" content="#1f2229">
+  <link id="appleTouchIcon" rel="apple-touch-icon" sizes="512x512">
+  <link id="faviconIcon" rel="icon" type="image/png" sizes="512x512">
+  <link id="pwaManifest" rel="manifest">
   <!-- Firebase Realtime Database Compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -903,6 +910,215 @@
     const ROOM_KEY = 'MAGNET_BOARD_SYNC_ROOM';
     const DEVICE_ID = 'dev_' + Math.random().toString(36).slice(2, 10);
 
+    // ========================================================
+    // 모바일 홈 화면 아이콘 & PWA 매니페스트 자동 생성기
+    // (다크 타공판 + 황금 월계관 메달 + MAGNET / OOK 명판)
+    // ========================================================
+    function setupAppIconsAndManifest() {
+      try {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // 1. 다크 타공판 배경
+        const bgGrad = ctx.createLinearGradient(0, 0, size, size);
+        bgGrad.addColorStop(0, '#2c303a');
+        bgGrad.addColorStop(0.5, '#1f2229');
+        bgGrad.addColorStop(1, '#14161b');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, size, size);
+
+        // 2. 타공판 3D 구멍 패턴
+        const spacing = 44;
+        for (let x = 28; x < size; x += spacing) {
+          for (let y = 28; y < size; y += spacing) {
+            ctx.beginPath();
+            ctx.arc(x, y + 2, 5.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(x, y, 5.2, 0, Math.PI * 2);
+            ctx.fillStyle = '#090a0d';
+            ctx.fill();
+          }
+        }
+
+        // 3. 중앙 황금 월계관 메달 & MAGNET 명판 (살짝 기울어진 다이컷 마그넷)
+        ctx.save();
+        ctx.translate(248, 252);
+        ctx.rotate(-7 * Math.PI / 180);
+
+        // 화이트 다이컷 테두리 + 그림자
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+        ctx.shadowBlur = 24;
+        ctx.shadowOffsetY = 12;
+        ctx.fillStyle = '#f8f9fa';
+
+        // 리본 다이컷 외곽
+        ctx.beginPath();
+        ctx.roundRect(-78, -168, 156, 86, 20);
+        ctx.fill();
+
+        // 메달 원형 다이컷 외곽
+        ctx.beginPath();
+        ctx.arc(0, -10, 114, 0, Math.PI * 2);
+        ctx.fill();
+
+        // MAGNET 명판 다이컷 외곽
+        ctx.beginPath();
+        ctx.roundRect(-118, 72, 236, 72, 22);
+        ctx.fill();
+        ctx.restore();
+
+        // 컬러 스트라이프 리본 (블루, 그린, 옐로우, 레드)
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(-58, -152);
+        ctx.lineTo(58, -152);
+        ctx.lineTo(42, -92);
+        ctx.lineTo(-42, -92);
+        ctx.closePath();
+        ctx.clip();
+
+        const ribbonColors = ['#3498db', '#2ecc71', '#f1c40f', '#e74c3c'];
+        const stripeW = 120 / 4;
+        ribbonColors.forEach((col, i) => {
+          ctx.fillStyle = col;
+          ctx.fillRect(-60 + i * stripeW, -155, stripeW + 1, 70);
+        });
+        ctx.restore();
+
+        // 메달 고리
+        ctx.fillStyle = '#f39c12';
+        ctx.beginPath();
+        ctx.roundRect(-34, -98, 68, 20, 8);
+        ctx.fill();
+
+        // 황금 메달 본체
+        const goldGrad = ctx.createLinearGradient(-90, -100, 90, 80);
+        goldGrad.addColorStop(0, '#ffeaa7');
+        goldGrad.addColorStop(0.45, '#f1c40f');
+        goldGrad.addColorStop(1, '#d35400');
+        ctx.fillStyle = goldGrad;
+        ctx.beginPath();
+        ctx.arc(0, -10, 96, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 메달 내부 음각 링
+        ctx.strokeStyle = 'rgba(180, 90, 0, 0.45)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(0, -10, 80, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 메달 내부 월계수 잎 문양 (좌/우)
+        ctx.fillStyle = '#d35400';
+        for (let side of [-1, 1]) {
+          for (let a = -0.7; a <= 0.85; a += 0.31) {
+            ctx.save();
+            ctx.translate(side * Math.cos(a) * 58, -10 + Math.sin(a) * 58);
+            ctx.rotate(side * (a + 0.6));
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 11, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+
+        // 중앙 황금 입체 별 문양
+        ctx.save();
+        ctx.translate(0, -12);
+        ctx.fillStyle = '#fff3b0';
+        ctx.strokeStyle = '#b86b00';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const r = i % 2 === 0 ? 34 : 15;
+          const angle = (i * Math.PI) / 5 - Math.PI / 2;
+          const sx = Math.cos(angle) * r;
+          const sy = Math.sin(angle) * r;
+          if (i === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        // 하단 블랙 양각 명판 (MAGNET)
+        ctx.fillStyle = '#1e2024';
+        ctx.strokeStyle = '#3a3e47';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(-102, 84, 204, 48, 14);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#e9ecef';
+        ctx.font = '800 28px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('MAGNET', 0, 109);
+        ctx.restore();
+
+        // 4. 우측 하단 작은 'OOK' 블랙 양각 라벨 스티커
+        ctx.save();
+        ctx.translate(392, 412);
+        ctx.rotate(-4 * Math.PI / 180);
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 6;
+        ctx.fillStyle = '#1b1d21';
+        ctx.strokeStyle = '#3c4049';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.roundRect(-48, -22, 96, 44, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.shadowColor = 'transparent';
+        ctx.fillStyle = '#dee2e6';
+        ctx.font = '800 22px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('OOK', 0, 1);
+        ctx.restore();
+
+        // 5. Data URL 생성 후 Apple Touch Icon, Favicon, PWA Manifest 연결
+        const iconDataUrl = canvas.toDataURL('image/png');
+        const appleIcon = document.getElementById('appleTouchIcon');
+        const favIcon = document.getElementById('faviconIcon');
+        if (appleIcon) appleIcon.href = iconDataUrl;
+        if (favIcon) favIcon.href = iconDataUrl;
+
+        const manifestObj = {
+          name: '다이컷 마그넷 보드',
+          short_name: 'MAGNET OOK',
+          start_url: '.',
+          display: 'standalone',
+          background_color: '#1f2229',
+          theme_color: '#1f2229',
+          icons: [
+            {
+              src: iconDataUrl,
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable'
+            }
+          ]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
+        const manifestLink = document.getElementById('pwaManifest');
+        if (manifestLink) manifestLink.href = URL.createObjectURL(manifestBlob);
+      } catch (e) {
+        console.warn('App icon setup skipped:', e);
+      }
+    }
+
     let fbDb = null;
     let currentRoomRef = null;
     let syncRoomCode = localStorage.getItem(ROOM_KEY) || 'ookgnet-default-board';
@@ -1116,6 +1332,7 @@
     }
 
     function init() {
+      setupAppIconsAndManifest();
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         try {
@@ -2449,27 +2666,26 @@
       window.addEventListener('touchend', onScaleEnd);
     }
 
-    function setupDirectEvents() {
-      window.addEventListener('paste', (e) => {
-        const items = e.clipboardData?.items;
-        if (!items) return;
-        for (const item of items) {
-          if (item.type.indexOf('image') !== -1) {
-            const blob = item.getAsFile();
-            const reader = new FileReader();
-            reader.onload = (evt) => openCreateModal(evt.target.result);
-            reader.readAsDataURL(blob);
-            break;
-          }
-        }
-      });
+    function triggerSnap(el) {
+      el.classList.remove('snapping');
+      void el.offsetWidth;
+      el.classList.add('snapping');
+      playMagnetSnapSound();
+    }
 
+    function showGuideX(y) { snapGuideX.style.top = `${y}px`; snapGuideX.style.display = 'block'; }
+    function hideGuideX() { snapGuideX.style.display = 'none'; }
+    function showGuideY(x) { snapGuideY.style.left = `${x}px`; snapGuideY.style.display = 'block'; }
+    function hideGuideY() { snapGuideY.style.display = 'none'; }
+    function hideGuides() { hideGuideX(); hideGuideY(); }
+
+    function setupDirectEvents() {
       window.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropOverlay.style.display = 'flex';
       });
       window.addEventListener('dragleave', (e) => {
-        if (e.relatedTarget === null) dropOverlay.style.display = 'none';
+        if (!e.relatedTarget) dropOverlay.style.display = 'none';
       });
       window.addEventListener('drop', (e) => {
         e.preventDefault();
@@ -2477,29 +2693,24 @@
         const file = e.dataTransfer?.files[0];
         if (file && file.type.startsWith('image/')) {
           const reader = new FileReader();
-          reader.onload = (evt) => openCreateModal(evt.target.result);
+          reader.onload = (ev) => openCreateModal(ev.target.result);
           reader.readAsDataURL(file);
         }
       });
-    }
 
-    function showGuideX(worldY) {
-      snapGuideX.style.top = `${worldY}px`;
-      snapGuideX.style.display = 'block';
-    }
-    function hideGuideX() { snapGuideX.style.display = 'none'; }
-    function showGuideY(worldX) {
-      snapGuideY.style.left = `${worldX}px`;
-      snapGuideY.style.display = 'block';
-    }
-    function hideGuideY() { snapGuideY.style.display = 'none'; }
-    function hideGuides() { hideGuideX(); hideGuideY(); }
-
-    function triggerSnap(el) {
-      el.classList.remove('snapping');
-      void el.offsetWidth;
-      el.classList.add('snapping');
-      playMagnetSnapSound();
+      window.addEventListener('paste', (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+          if (item.type.startsWith('image/')) {
+            const file = item.getAsFile();
+            const reader = new FileReader();
+            reader.onload = (ev) => openCreateModal(ev.target.result);
+            reader.readAsDataURL(file);
+            break;
+          }
+        }
+      });
     }
 
     window.onload = init;
