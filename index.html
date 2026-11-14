@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>다이컷 마그넷 보드</title>
+  <!-- Firebase Realtime Database Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body, html {
@@ -85,35 +88,36 @@
       align-items: center;
       pointer-events: none;
       z-index: 500;
-      gap: 6px;
+      gap: 4px;
     }
 
     .top-left-group, .top-right-group {
       display: flex;
-      gap: 5px;
+      gap: 4px;
       pointer-events: auto;
+      align-items: center;
     }
 
     .top-center-switcher {
       pointer-events: auto;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
       background: rgba(255, 255, 255, 0.86);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      padding: 4px 8px;
+      padding: 4px 7px;
       border-radius: 20px;
       box-shadow: 0 3px 10px rgba(0,0,0,0.12);
-      max-width: 44vw;
+      max-width: 40vw;
     }
 
     .board-nav-btn {
       border: none;
       background: transparent;
       cursor: pointer;
-      font-size: 12px;
-      padding: 4px 5px;
+      font-size: 11px;
+      padding: 4px;
       border-radius: 50%;
       color: #333;
       display: flex;
@@ -129,10 +133,10 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 85px;
+      max-width: 75px;
       text-align: center;
       cursor: pointer;
-      padding: 2px 4px;
+      padding: 2px 3px;
     }
 
     .top-btn {
@@ -142,7 +146,7 @@
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       color: #1d1d1f;
-      padding: 7px 11px;
+      padding: 7px 10px;
       border-radius: 20px;
       font-size: 12px;
       font-weight: 600;
@@ -158,7 +162,25 @@
     .top-btn:active { transform: scale(0.95); }
     .btn-add { background: #111; color: #fff; }
     .btn-deco { background: #ffeaa7; color: #d35400; }
-    .btn-icon-only { padding: 7px 9px; }
+    .btn-icon-only { padding: 7px 8px; }
+
+    /* 동기화 상태 표시 배지 */
+    .sync-badge {
+      pointer-events: auto;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 6px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      min-height: 32px;
+    }
 
     /* 스마트 정렬 가이드 라인 */
     .snap-guide {
@@ -433,7 +455,6 @@
       z-index: 500;
     }
 
-    /* 실행 취소 & 알림 토스트 바 */
     .toast-bar {
       position: fixed;
       bottom: max(56px, calc(env(safe-area-inset-bottom) + 48px));
@@ -528,7 +549,7 @@
     .drawer-item span { font-size: 10px; color: #555; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
 
     /* ========================================================
-       6. 커스텀 모달 UI (브라우저 기본 alert/prompt 완전 대체)
+       6. 커스텀 모달 UI
        ======================================================== */
     .modal-overlay {
       position: fixed;
@@ -607,6 +628,22 @@
     }
     .setting-opt.selected { border-color: #111; background: #f8f9fa; font-weight: 600; }
 
+    .room-code-row {
+      display: flex;
+      gap: 6px;
+    }
+    .room-code-row input { flex: 1; }
+    .room-code-row button {
+      padding: 0 14px;
+      border-radius: 10px;
+      border: none;
+      background: #0984e3;
+      color: #fff;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
     .backup-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -631,7 +668,7 @@
 
   <div id="dropOverlay">보드 위에 사진을 놓아 마그넷 생성 📷</div>
 
-  <!-- 슬림 상단 네비게이션 (사진 공간 확보를 위해 컴팩트하게 배치) -->
+  <!-- 슬림 상단 네비게이션 -->
   <div class="top-bar">
     <div class="top-left-group">
       <button class="top-btn btn-add" onclick="openCreateModal()">+ 마그넷</button>
@@ -641,13 +678,14 @@
 
     <div class="top-center-switcher">
       <button class="board-nav-btn" onclick="prevBoard()" title="이전 보드">◀</button>
-      <span class="board-name-display" id="boardNameDisplay" onclick="openBoardManageModal()" title="보드 관리 / 이름 변경">기본 보드</span>
+      <span class="board-name-display" id="boardNameDisplay" onclick="openBoardManageModal()" title="보드 관리 / 이름 변경">내 보드 1</span>
       <button class="board-nav-btn" onclick="nextBoard()" title="다음 보드">▶</button>
       <button class="board-nav-btn" onclick="addNewBoard()" title="새 보드 추가" style="font-weight:bold; color:#0984e3;">+</button>
     </div>
 
     <div class="top-right-group">
-      <button class="top-btn btn-icon-only" onclick="openSettingsModal()" title="설정 및 백업">⚙️</button>
+      <div class="sync-badge" id="syncBadge" onclick="openSettingsModal()" title="클라우드 실시간 동기화 상태">☁️</div>
+      <button class="top-btn btn-icon-only" onclick="openSettingsModal()" title="설정 및 동기화">⚙️</button>
     </div>
   </div>
 
@@ -796,10 +834,19 @@
     </div>
   </div>
 
-  <!-- [모달 5] 환경설정 & 백업/스냅샷 모달 -->
+  <!-- [모달 5] 환경설정 & Firebase 동기화 & 백업/스냅샷 모달 -->
   <div class="modal-overlay" id="settingsModal">
     <div class="modal-card">
-      <div class="modal-title">보드 환경 설정</div>
+      <div class="modal-title">보드 설정 및 클라우드 동기화</div>
+
+      <div class="form-group">
+        <label>클라우드 동기화 방 코드 (폰 ↔ PC 동일 코드 입력)</label>
+        <div class="room-code-row">
+          <input type="text" id="roomCodeInput" placeholder="예: ookgnet-default-board" maxlength="32" />
+          <button onclick="changeSyncRoomCode()">연결</button>
+        </div>
+        <div id="syncStatusText" style="font-size: 11px; color: #666; margin-top: 4px;">동기화 상태 확인 중...</div>
+      </div>
 
       <div class="form-group">
         <label>보드 배경 질감</label>
@@ -839,7 +886,29 @@
   </div>
 
   <script>
-    const STORAGE_KEY = 'MAGNET_BOARD_MASTER_V9';
+    // ========================================================
+    // 0. Firebase 설정 (ookgnet 프로젝트 실시간 DB 연동)
+    // ========================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyBpnqL9Yof4sXe7MZWbIa0bpmDJUlWWljg",
+      authDomain: "ookgnet.firebaseapp.com",
+      databaseURL: "https://ookgnet-default-rtdb.firebaseio.com",
+      projectId: "ookgnet",
+      storageBucket: "ookgnet.firebasestorage.app",
+      messagingSenderId: "703157586667",
+      appId: "1:703157586667:web:ab8474a17b47e9c1558cae"
+    };
+
+    const STORAGE_KEY = 'MAGNET_BOARD_MASTER_V10';
+    const ROOM_KEY = 'MAGNET_BOARD_SYNC_ROOM';
+    const DEVICE_ID = 'dev_' + Math.random().toString(36).slice(2, 10);
+
+    let fbDb = null;
+    let currentRoomRef = null;
+    let syncRoomCode = localStorage.getItem(ROOM_KEY) || 'ookgnet-default-board';
+    let isRemoteUpdating = false;
+    let syncPushTimer = null;
+
     const boardWorld = document.getElementById('board-world');
     const boardViewport = document.getElementById('board-viewport');
     const boardNameDisplay = document.getElementById('boardNameDisplay');
@@ -847,10 +916,9 @@
     const snapGuideY = document.getElementById('snapGuideY');
     const dropOverlay = document.getElementById('dropOverlay');
 
-    // 배포 친화적 데이터 스키마 (userId 격리 구조)
     let appData = {
-      version: '9.0',
-      userId: 'guest_user',
+      version: '10.0',
+      userId: 'ookgnet_user',
       activeBoardIndex: 0,
       bg: 'bg-metal',
       soundEnabled: true,
@@ -867,12 +935,9 @@
     let imageAspectRatio = 1.0;
 
     let isMagnetInteracting = false;
-
-    // 실행 취소(Undo) 상태 버퍼
     let lastDeletedRecord = null;
     let toastTimeout = null;
 
-    // 모바일에서 첫 진입 시 한눈에 들어오도록 초기 스케일 최적화
     const isMobile = window.innerWidth < 600;
     let panState = {
       x: isMobile ? 20 : window.innerWidth / 2 - 200,
@@ -884,6 +949,113 @@
       initialDist: 0,
       initialScale: 1.0
     };
+
+    // ========================================================
+    // Firebase 실시간 동기화 파이프라인
+    // ========================================================
+    function initFirebaseSync() {
+      const badge = document.getElementById('syncBadge');
+      const statusText = document.getElementById('syncStatusText');
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+        }
+        fbDb = firebase.database();
+
+        fbDb.ref('.info/connected').on('value', (snap) => {
+          if (snap.val() === true) {
+            badge.innerText = '🟢';
+            if (statusText) statusText.innerText = `🟢 실시간 클라우드 연결됨 (방: ${syncRoomCode})`;
+          } else {
+            badge.innerText = '🟡';
+            if (statusText) statusText.innerText = '🟡 오프라인 모드 (연결 대기 중)';
+          }
+        });
+
+        connectToRoom(syncRoomCode);
+      } catch (err) {
+        console.error('Firebase init error:', err);
+        badge.innerText = '🔴';
+        if (statusText) statusText.innerText = '🔴 Firebase 연결 오류 (콘솔 DB URL 확인 필요)';
+      }
+    }
+
+    function connectToRoom(roomCode) {
+      if (!fbDb) return;
+      if (currentRoomRef) currentRoomRef.off();
+
+      const safeRoom = roomCode.replace(/[.#$\[\]\/]/g, '_') || 'ookgnet-default-board';
+      syncRoomCode = safeRoom;
+      localStorage.setItem(ROOM_KEY, syncRoomCode);
+
+      currentRoomRef = fbDb.ref(`magnet_boards/${syncRoomCode}`);
+
+      currentRoomRef.on('value', (snapshot) => {
+        const remoteVal = snapshot.val();
+        if (!remoteVal) {
+          // 클라우드에 데이터가 없으면 현재 로컬 데이터 업로드
+          pushToFirebase(true);
+          return;
+        }
+
+        // 본인이 방금 올린 업데이트는 무시하여 화면 깜빡임 방지
+        if (remoteVal.lastUpdatedBy === DEVICE_ID) return;
+
+        if (remoteVal.boards && Array.isArray(remoteVal.boards)) {
+          isRemoteUpdating = true;
+          appData.boards = remoteVal.boards.map(b => ({
+            ...b,
+            magnets: b.magnets || []
+          }));
+          if (remoteVal.bg) {
+            appData.bg = remoteVal.bg;
+            applyBg(appData.bg, false);
+          }
+          if (appData.activeBoardIndex >= appData.boards.length) {
+            appData.activeBoardIndex = 0;
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+          renderCurrentBoard();
+          isRemoteUpdating = false;
+        }
+      }, (error) => {
+        console.error('Firebase read error:', error);
+        document.getElementById('syncBadge').innerText = '🔴';
+        const statusText = document.getElementById('syncStatusText');
+        if (statusText) statusText.innerText = '🔴 DB 읽기 권한 또는 URL 오류';
+      });
+    }
+
+    function pushToFirebase(immediate = false) {
+      if (!currentRoomRef || isRemoteUpdating) return;
+      clearTimeout(syncPushTimer);
+      const executePush = () => {
+        const payload = {
+          boards: appData.boards,
+          bg: appData.bg,
+          lastUpdatedBy: DEVICE_ID,
+          updatedAt: Date.now()
+        };
+        currentRoomRef.set(payload).catch(err => {
+          console.error('Firebase write error:', err);
+          document.getElementById('syncBadge').innerText = '🔴';
+        });
+      };
+
+      if (immediate) executePush();
+      else syncPushTimer = setTimeout(executePush, 250);
+    }
+
+    function changeSyncRoomCode() {
+      const input = document.getElementById('roomCodeInput');
+      const newCode = input.value.trim();
+      if (!newCode) {
+        showToast('연결할 방 코드를 입력해 주세요.');
+        return;
+      }
+      connectToRoom(newCode);
+      showToast(`'${syncRoomCode}' 방에 연결되었습니다 ☁️`);
+    }
 
     let audioCtx = null;
     function playMagnetSnapSound() {
@@ -928,7 +1100,6 @@
       }
     }
 
-    // 커스텀 토스트 메시지 (alert 대체 및 Undo 실행 취소 지원)
     function showToast(msg, showUndo = false) {
       const bar = document.getElementById('toastBar');
       const msgEl = document.getElementById('toastMessage');
@@ -970,20 +1141,22 @@
             memo: '올해의 완독 책표지 📖', date: '2026.05.20', flipped: false, isBook: true, isDeco: false, pin: 'tape', z: 11
           }
         ];
-        saveStorage();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
       }
 
-      applyBg(appData.bg || 'bg-metal');
+      applyBg(appData.bg || 'bg-metal', false);
       document.getElementById('settingSoundToggle').checked = appData.soundEnabled !== false;
       renderCurrentBoard();
       setupInfiniteCanvas();
       setupDirectEvents();
       updateWorldTransform();
+      initFirebaseSync();
     }
 
-    function saveStorage() {
+    function saveStorage(syncCloud = true) {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        if (syncCloud) pushToFirebase();
       } catch (e) {
         showToast('저장 공간이 부족합니다. 불필요한 마그넷을 정리해 주세요.');
       }
@@ -1014,7 +1187,6 @@
     // 7. 무한 캔버스 엔진 (핀치 줌 & 두 손가락 마그넷 제스처)
     // ========================================================
     function setupInfiniteCanvas() {
-      // PC 휠 줌
       boardViewport.addEventListener('wheel', (e) => {
         e.preventDefault();
         const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
@@ -1030,7 +1202,6 @@
         updateWorldTransform();
       }, { passive: false });
 
-      // PC 배경 팬
       boardViewport.addEventListener('mousedown', (e) => {
         if (isMagnetInteracting || e.target.closest('.magnet-wrapper') || e.target.closest('.top-bar') || e.target.closest('.bottom-bar')) return;
         panState.isPanning = true;
@@ -1047,7 +1218,6 @@
 
       window.addEventListener('mouseup', () => { panState.isPanning = false; });
 
-      // 모바일 배경 팬 & 핀치 줌
       boardViewport.addEventListener('touchstart', (e) => {
         if (isMagnetInteracting || e.target.closest('.magnet-wrapper') || e.target.closest('.top-bar') || e.target.closest('.bottom-bar')) return;
         if (e.touches.length >= 2) {
@@ -1112,7 +1282,7 @@
       const oldMagnets = boardWorld.querySelectorAll('.magnet-wrapper');
       oldMagnets.forEach(el => el.remove());
 
-      curBoard.magnets.forEach(m => createMagnetElement(m));
+      (curBoard.magnets || []).forEach(m => createMagnetElement(m));
       renderArchiveDrawer();
     }
 
@@ -1121,14 +1291,14 @@
     // ========================================================
     function prevBoard() {
       appData.activeBoardIndex = (appData.activeBoardIndex - 1 + appData.boards.length) % appData.boards.length;
-      saveStorage();
+      saveStorage(false);
       renderCurrentBoard();
       playMagnetSnapSound();
     }
 
     function nextBoard() {
       appData.activeBoardIndex = (appData.activeBoardIndex + 1) % appData.boards.length;
-      saveStorage();
+      saveStorage(false);
       renderCurrentBoard();
       playMagnetSnapSound();
     }
@@ -1142,7 +1312,7 @@
       };
       appData.boards.push(newBoard);
       appData.activeBoardIndex = appData.boards.length - 1;
-      saveStorage();
+      saveStorage(true);
       renderCurrentBoard();
       playMagnetSnapSound();
       showToast(`'${newBoard.name}' 생성됨`);
@@ -1162,7 +1332,7 @@
       if (val) {
         cur.name = val;
         boardNameDisplay.innerText = cur.name;
-        saveStorage();
+        saveStorage(true);
         showToast('보드 이름이 변경되었습니다.');
       }
       closeModal('boardManageModal');
@@ -1173,16 +1343,16 @@
       const deletedName = getCurrentBoard().name;
       appData.boards.splice(appData.activeBoardIndex, 1);
       appData.activeBoardIndex = Math.max(0, appData.activeBoardIndex - 1);
-      saveStorage();
+      saveStorage(true);
       renderCurrentBoard();
       closeModal('boardManageModal');
       showToast(`'${deletedName}' 보드가 삭제되었습니다.`);
     }
 
-    // 유형별 분리 정렬 (모바일 화면 폭 반영)
+    // 유형별 분리 정렬
     function alignAllSplitGrid() {
       const curBoard = getCurrentBoard();
-      if (!curBoard.magnets.length) return;
+      if (!curBoard.magnets || !curBoard.magnets.length) return;
 
       const paddingLeft = 30;
       const startY = 30;
@@ -1250,7 +1420,7 @@
         }
       });
 
-      saveStorage();
+      saveStorage(true);
       playMagnetSnapSound();
       showToast('유형별로 깔끔하게 정렬되었습니다.');
     }
@@ -1266,7 +1436,7 @@
       list.innerHTML = '';
       const curBoard = getCurrentBoard();
 
-      curBoard.magnets.forEach(m => {
+      (curBoard.magnets || []).forEach(m => {
         const item = document.createElement('div');
         item.className = 'drawer-item';
         item.innerHTML = `
@@ -1289,21 +1459,21 @@
       });
     }
 
-    function applyBg(bgClass) {
+    function applyBg(bgClass, syncCloud = true) {
       boardViewport.className = bgClass;
       appData.bg = bgClass;
-      saveStorage();
+      saveStorage(syncCloud);
 
       document.querySelectorAll('.setting-opt').forEach(el => el.classList.remove('selected'));
       const activeOpt = document.getElementById('opt-' + bgClass.replace('bg-', ''));
       if (activeOpt) activeOpt.classList.add('selected');
     }
 
-    function selectBg(bgClass) { applyBg(bgClass); }
+    function selectBg(bgClass) { applyBg(bgClass, true); }
 
     function toggleSoundSetting() {
       appData.soundEnabled = document.getElementById('settingSoundToggle').checked;
-      saveStorage();
+      saveStorage(false);
     }
 
     // ========================================================
@@ -1331,11 +1501,11 @@
           const imported = JSON.parse(evt.target.result);
           if (imported && Array.isArray(imported.boards) && imported.boards.length > 0) {
             appData = imported;
-            saveStorage();
-            applyBg(appData.bg || 'bg-metal');
+            saveStorage(true);
+            applyBg(appData.bg || 'bg-metal', false);
             renderCurrentBoard();
             closeModal('settingsModal');
-            showToast('백업 데이터를 성공적으로 불러왔습니다.');
+            showToast('백업 데이터를 불러오고 클라우드에 동기화했습니다.');
           } else {
             showToast('올바른 보드 백업 파일이 아닙니다.');
           }
@@ -1349,7 +1519,7 @@
 
     async function exportBoardSnapshot() {
       const curBoard = getCurrentBoard();
-      if (!curBoard.magnets.length) {
+      if (!curBoard.magnets || !curBoard.magnets.length) {
         showToast('저장할 마그넷이 보드에 없습니다.');
         return;
       }
@@ -1357,7 +1527,6 @@
       closeModal('settingsModal');
       showToast('스냅샷 이미지를 생성하고 있습니다...');
 
-      // 현재 보드 내 마그넷들의 전체 바운딩 박스 계산
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       curBoard.magnets.forEach(m => {
         const w = m.width || 100;
@@ -1376,7 +1545,6 @@
       canvas.height = canvasH;
       const ctx = canvas.getContext('2d');
 
-      // 배경 색상 렌더링
       if (appData.bg === 'bg-pegboard') {
         ctx.fillStyle = '#1f2229';
         ctx.fillRect(0, 0, canvasW, canvasH);
@@ -1400,7 +1568,6 @@
         ctx.fillRect(0, 0, canvasW, canvasH);
       }
 
-      // z-index 순으로 정렬하여 마그넷 그리기
       const sorted = [...curBoard.magnets].sort((a, b) => (a.z || 10) - (b.z || 10));
 
       for (const m of sorted) {
@@ -1454,7 +1621,8 @@
     }
 
     function openSettingsModal() {
-      applyBg(appData.bg);
+      applyBg(appData.bg, false);
+      document.getElementById('roomCodeInput').value = syncRoomCode;
       document.getElementById('settingsModal').classList.add('active');
     }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
@@ -1472,7 +1640,7 @@
       img.crossOrigin = 'anonymous';
       img.src = src;
       img.onload = () => {
-        const maxSide = 700;
+        const maxSide = 650;
         let w = img.width;
         let h = img.height;
         imageAspectRatio = w / h;
@@ -1632,7 +1800,9 @@
 
       const centerX = Math.round((-panState.x + window.innerWidth / 2) / panState.scale);
       const centerY = Math.round((-panState.y + window.innerHeight / 2) / panState.scale);
-      const maxZ = getCurrentBoard().magnets.reduce((max, m) => Math.max(max, m.z || 1), 10);
+      const curBoard = getCurrentBoard();
+      if (!curBoard.magnets) curBoard.magnets = [];
+      const maxZ = curBoard.magnets.reduce((max, m) => Math.max(max, m.z || 1), 10);
 
       const newMagnet = {
         id: 'mag_' + Date.now(),
@@ -1652,9 +1822,9 @@
         z: maxZ + 1
       };
 
-      getCurrentBoard().magnets.push(newMagnet);
+      curBoard.magnets.push(newMagnet);
       createMagnetElement(newMagnet);
-      saveStorage();
+      saveStorage(true);
       closeModal('createModal');
       renderArchiveDrawer();
       playMagnetSnapSound();
@@ -1699,7 +1869,9 @@
       const encodedSvg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(rawSvg);
       const centerX = Math.round((-panState.x + window.innerWidth / 2) / panState.scale);
       const centerY = Math.round((-panState.y + window.innerHeight / 2) / panState.scale);
-      const maxZ = getCurrentBoard().magnets.reduce((max, m) => Math.max(max, m.z || 1), 10);
+      const curBoard = getCurrentBoard();
+      if (!curBoard.magnets) curBoard.magnets = [];
+      const maxZ = curBoard.magnets.reduce((max, m) => Math.max(max, m.z || 1), 10);
 
       const newMagnet = {
         id: 'mag_deco_' + Date.now(),
@@ -1719,9 +1891,9 @@
         z: maxZ + 2
       };
 
-      getCurrentBoard().magnets.push(newMagnet);
+      curBoard.magnets.push(newMagnet);
       createMagnetElement(newMagnet);
-      saveStorage();
+      saveStorage(true);
       closeModal('decoModal');
       document.getElementById('stickerTextInput').value = '';
       playMagnetSnapSound();
@@ -1747,7 +1919,7 @@
         el.querySelector('.back-memo-text').innerText = target.memo || '기록된 메모가 없습니다.';
         el.className = `magnet-wrapper ${target.flipped ? 'flipped' : ''} ${target.isBook ? 'is-book' : ''} ${target.isDeco ? 'is-deco' : ''} ${target.pin === 'tape' ? 'pin-tape' : (target.pin === 'dot' ? 'pin-dot' : '')} selected`;
 
-        saveStorage();
+        saveStorage(true);
         renderArchiveDrawer();
         closeModal('editModal');
         showToast('메모가 수정되었습니다.');
@@ -1816,12 +1988,11 @@
       if (targetData && el && !targetData.isDeco) {
         targetData.flipped = !targetData.flipped;
         el.classList.toggle('flipped', targetData.flipped);
-        saveStorage();
+        saveStorage(true);
         playMagnetSnapSound();
       }
     }
 
-    // 삭제 및 실행 취소(Undo) 지원
     function deleteMagnet(id, e) {
       if (e) e.stopPropagation();
       const curBoard = getCurrentBoard();
@@ -1838,7 +2009,7 @@
       document.getElementById(id)?.remove();
 
       isMagnetInteracting = false;
-      saveStorage();
+      saveStorage(true);
       renderArchiveDrawer();
       selectedMagnetId = null;
 
@@ -1849,8 +2020,9 @@
       if (!lastDeletedRecord) return;
       const targetBoard = appData.boards.find(b => b.id === lastDeletedRecord.boardId);
       if (targetBoard) {
+        if (!targetBoard.magnets) targetBoard.magnets = [];
         targetBoard.magnets.push(lastDeletedRecord.item);
-        saveStorage();
+        saveStorage(true);
         if (getCurrentBoard().id === targetBoard.id) {
           createMagnetElement(lastDeletedRecord.item);
           renderArchiveDrawer();
@@ -1869,7 +2041,7 @@
       if (target && el) {
         target.z = Math.max(1, (target.z || 10) + delta);
         el.style.zIndex = target.z;
-        saveStorage();
+        saveStorage(true);
         triggerSnap(el);
       }
     }
@@ -1897,7 +2069,7 @@
         data.rot = 0;
         el.style.transform = `rotate(0deg)`;
         triggerSnap(el);
-        saveStorage();
+        saveStorage(true);
       });
 
       el.addEventListener('mousedown', (e) => startDrag(e, el, data));
@@ -1940,7 +2112,6 @@
       });
     }
 
-    // 모바일 마그넷 위 두 손가락 핀치 크기 & 회전 제스처
     function startTwoFingerGesture(e, el, data) {
       e.stopPropagation();
       if (e.cancelable) e.preventDefault();
@@ -1969,12 +2140,10 @@
         const curDist = Math.hypot(p0.clientX - p1.clientX, p0.clientY - p1.clientY);
         const curAngle = Math.atan2(p1.clientY - p0.clientY, p1.clientX - p0.clientX);
 
-        // 1. 크기 계산
         const scaleRatio = curDist / Math.max(10, initDist);
         const newW = Math.max(35, Math.min(450, Math.round(startW * scaleRatio)));
         const newH = Math.round(newW / aspect);
 
-        // 2. 회전 각도 계산
         let deltaDeg = (curAngle - initAngle) * (180 / Math.PI);
         let normalized = ((Math.round(initialRot + deltaDeg) % 360) + 360) % 360;
         if (normalized > 180) normalized -= 360;
@@ -1995,7 +2164,7 @@
         window.removeEventListener('touchmove', onTwoFingerMove);
         window.removeEventListener('touchend', onTwoFingerEnd);
         triggerSnap(el);
-        saveStorage();
+        saveStorage(true);
       }
 
       window.addEventListener('touchmove', onTwoFingerMove, { passive: false });
@@ -2032,7 +2201,7 @@
       if (!data.isDeco) {
         const parentW = data.width || 100;
         const parentH = data.height || 100;
-        attachedDecos = curBoard.magnets
+        attachedDecos = (curBoard.magnets || [])
           .filter(m => m.isDeco && m.id !== data.id)
           .filter(deco => {
             const decoW = deco.width || 80;
@@ -2080,7 +2249,7 @@
         const w = data.width || 100;
         const h = data.height || 100;
 
-        for (const other of curBoard.magnets) {
+        for (const other of (curBoard.magnets || [])) {
           if (other.id === data.id) continue;
           if (attachedDecos.some(d => d.data.id === other.id)) continue;
 
@@ -2143,7 +2312,7 @@
         window.removeEventListener('touchend', onEnd);
 
         triggerSnap(el);
-        saveStorage();
+        saveStorage(true);
       }
 
       window.addEventListener('mousemove', onMove);
@@ -2220,7 +2389,7 @@
         window.removeEventListener('touchend', onRotateEnd);
 
         triggerSnap(el);
-        saveStorage();
+        saveStorage(true);
       }
 
       window.addEventListener('mousemove', onRotateMove);
@@ -2271,7 +2440,7 @@
         window.removeEventListener('touchend', onScaleEnd);
 
         triggerSnap(el);
-        saveStorage();
+        saveStorage(true);
       }
 
       window.addEventListener('mousemove', onScaleMove);
