@@ -1,0 +1,2339 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>다이컷 마그넷 보드</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      background: #111;
+    }
+
+    /* ========================================================
+       1. 뷰포트 고정 무한 배경 & 가상 캔버스 레이어
+       ======================================================== */
+    #board-viewport {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+      cursor: default;
+      touch-action: none;
+      transition: background-color 0.3s ease;
+    }
+
+    /* 1) 냉장고 메탈 (무한 반복) */
+    .bg-metal {
+      background-color: #c9cdd6;
+      background-image: 
+        radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.4) 0%, transparent 80%),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 4px),
+        linear-gradient(135deg, #d8dce4 0%, #b8bcc6 50%, #9fa5b1 100%);
+      background-size: 100% 100%, 8px 8px, 100% 100%;
+    }
+
+    /* 2) 다크 타공판 (무한 반복) */
+    .bg-pegboard {
+      background-color: #1f2229;
+      background-image: 
+        radial-gradient(circle at 16px 15px, rgba(0,0,0,0.9) 3.5px, transparent 4px),
+        radial-gradient(circle at 16px 17px, rgba(255,255,255,0.18) 3.8px, transparent 4px);
+      background-size: 32px 32px, 32px 32px;
+    }
+
+    /* 3) 빈티지 코르크 (무한 반복) */
+    .bg-cork {
+      background-color: #b37e42;
+      background-image: 
+        radial-gradient(rgba(60, 30, 10, 0.3) 15%, transparent 16%),
+        radial-gradient(rgba(255, 225, 170, 0.35) 15%, transparent 16%),
+        radial-gradient(rgba(40, 15, 0, 0.25) 20%, transparent 25%),
+        linear-gradient(45deg, rgba(80, 40, 10, 0.08) 25%, transparent 25%, transparent 75%, rgba(80, 40, 10, 0.08) 75%);
+      background-size: 20px 14px, 24px 26px, 14px 18px, 16px 16px;
+    }
+
+    /* 가상 월드 레이어: 크기 제한 없는 무한 좌표 평면 */
+    #board-world {
+      width: 0;
+      height: 0;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      touch-action: none;
+      will-change: transform;
+    }
+
+    /* ========================================================
+       2. 모바일 최적화 슬림 상단 네비게이션 (사진 공간 극대화)
+       ======================================================== */
+    .top-bar {
+      position: absolute;
+      top: max(10px, env(safe-area-inset-top));
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 500;
+      gap: 6px;
+    }
+
+    .top-left-group, .top-right-group {
+      display: flex;
+      gap: 5px;
+      pointer-events: auto;
+    }
+
+    .top-center-switcher {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 4px 8px;
+      border-radius: 20px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+      max-width: 44vw;
+    }
+
+    .board-nav-btn {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 4px 5px;
+      border-radius: 50%;
+      color: #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .board-nav-btn:active { background: rgba(0,0,0,0.08); }
+
+    .board-name-display {
+      font-size: 12px;
+      font-weight: 700;
+      color: #111;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 85px;
+      text-align: center;
+      cursor: pointer;
+      padding: 2px 4px;
+    }
+
+    .top-btn {
+      pointer-events: auto;
+      border: none;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: #1d1d1f;
+      padding: 7px 11px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: transform 0.15s ease, background 0.2s;
+      min-height: 32px;
+    }
+    .top-btn:active { transform: scale(0.95); }
+    .btn-add { background: #111; color: #fff; }
+    .btn-deco { background: #ffeaa7; color: #d35400; }
+    .btn-icon-only { padding: 7px 9px; }
+
+    /* 스마트 정렬 가이드 라인 */
+    .snap-guide {
+      position: absolute;
+      background: rgba(46, 213, 115, 0.9);
+      pointer-events: none;
+      z-index: 450;
+      display: none;
+    }
+    .snap-guide-x { width: 100000px; height: 1.5px; left: -50000px; }
+    .snap-guide-y { height: 100000px; width: 1.5px; top: -50000px; }
+
+    /* 드롭 오버레이 */
+    #dropOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      border: 4px dashed #2ed573;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    /* ========================================================
+       3. 마그넷 및 3D 플립 카드
+       ======================================================== */
+    .magnet-wrapper {
+      position: absolute;
+      touch-action: none;
+      perspective: 1000px;
+      will-change: transform;
+      cursor: grab;
+      transform-origin: center center;
+    }
+
+    @keyframes wiggle {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(-1.5deg); }
+      75% { transform: rotate(1.5deg); }
+      100% { transform: rotate(0deg); }
+    }
+    .magnet-wrapper.wiggling {
+      animation: wiggle 0.18s infinite ease-in-out;
+    }
+
+    .magnet-card {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transform-origin: center center;
+      transition: transform 0.45s cubic-bezier(0.4, 0.2, 0.2, 1);
+    }
+
+    .magnet-wrapper.flipped .magnet-card {
+      transform: rotateY(180deg);
+    }
+
+    .magnet-front {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform-origin: center center;
+      filter: 
+        drop-shadow(2px 0 0 #ffffff)
+        drop-shadow(-2px 0 0 #ffffff)
+        drop-shadow(0 2px 0 #ffffff)
+        drop-shadow(0 -2px 0 #ffffff)
+        drop-shadow(0 8px 14px rgba(0, 0, 0, 0.35));
+      transition: filter 0.15s ease, transform 0.15s ease;
+    }
+
+    .magnet-front img {
+      width: 100%;
+      height: 100%;
+      object-fit: fill;
+      display: block;
+      pointer-events: none;
+    }
+
+    .magnet-wrapper.is-book .magnet-front img {
+      border-radius: 4px;
+      box-shadow: inset 0 0 1px rgba(0,0,0,0.25);
+    }
+
+    /* 핀 1: 마스킹 테이프 */
+    .pin-tape::before {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%) rotate(-2deg);
+      width: 48px;
+      height: 18px;
+      background: rgba(255, 235, 140, 0.75);
+      border-left: 2px dashed rgba(0,0,0,0.15);
+      border-right: 2px dashed rgba(0,0,0,0.15);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* 핀 2: 미니 컬러 원형 자석 */
+    .pin-dot::before {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ff4757, #b33939);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.4);
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* 집어 올릴 때 (자석 떼어내기 틸트) */
+    .magnet-wrapper.dragging .magnet-front {
+      transform: scale(1.04) rotateX(10deg) rotateY(-8deg);
+      filter: 
+        drop-shadow(2px 0 0 #ffffff)
+        drop-shadow(-2px 0 0 #ffffff)
+        drop-shadow(0 2px 0 #ffffff)
+        drop-shadow(0 -2px 0 #ffffff)
+        drop-shadow(8px 24px 30px rgba(0, 0, 0, 0.45));
+    }
+
+    /* 뒷면: 러버 자석 */
+    .magnet-back {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      transform: rotateY(180deg);
+      border-radius: 12px;
+      background: #1b1b1b;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 8px 16px rgba(0,0,0,0.4);
+      border: 2px solid #333;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: #f1f2f6;
+    }
+
+    .back-magnet-texture {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666;
+      font-weight: 800;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .back-memo-text {
+      font-size: 11px;
+      line-height: 1.4;
+      color: #fffae6;
+      word-break: keep-all;
+      overflow-y: auto;
+      max-height: 70px;
+    }
+
+    .back-date {
+      font-size: 9px;
+      color: #888;
+      text-align: right;
+    }
+
+    @keyframes snapBounce {
+      0% { transform: scale(1.08); }
+      50% { transform: scale(0.96); }
+      100% { transform: scale(1); }
+    }
+    .magnet-wrapper.snapping {
+      animation: snapBounce 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    /* ========================================================
+       4. 트랜스폼 조절 핸들
+       ======================================================== */
+    .transform-box {
+      position: absolute;
+      inset: -12px;
+      border: 1.5px dashed rgba(255, 255, 255, 0.85);
+      border-radius: 12px;
+      pointer-events: none;
+      display: none;
+    }
+    .magnet-wrapper.selected .transform-box { display: block; }
+
+    .tb-handle {
+      pointer-events: auto;
+      position: absolute;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+      cursor: pointer;
+      font-size: 14px;
+      transition: transform 0.12s ease;
+      background: #ffffff;
+      z-index: 50;
+      touch-action: none;
+    }
+    .tb-handle:active { transform: scale(0.92); }
+
+    .handle-flip { top: -14px; left: -14px; background: #2ed573; color: #fff; }
+    .handle-delete { top: -14px; right: -14px; background: #ff4757; color: #fff; font-weight: bold; }
+    .handle-scale { bottom: -14px; right: -14px; cursor: nwse-resize; font-size: 15px; }
+    .handle-rotate {
+      bottom: -36px;
+      left: 50%;
+      transform: translateX(-50%);
+      cursor: crosshair;
+    }
+    .handle-rotate::before {
+      content: '';
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1.5px;
+      height: 8px;
+      background: rgba(255,255,255,0.85);
+    }
+    .handle-layer-up { top: 50%; right: -28px; transform: translateY(-19px); font-size: 12px; font-weight: bold; }
+    .handle-layer-down { top: 50%; right: -28px; transform: translateY(19px); font-size: 12px; font-weight: bold; }
+    .handle-edit { bottom: -14px; left: -14px; background: #3742fa; color: #fff; font-size: 13px; }
+
+    /* 소품 전용: 플립 및 메모 수정 버튼 숨김 */
+    .magnet-wrapper.is-deco .handle-flip,
+    .magnet-wrapper.is-deco .handle-edit {
+      display: none !important;
+    }
+
+    /* ========================================================
+       5. 아카이브 서랍 & 하단 컨트롤러 & 실행 취소 토스트
+       ======================================================== */
+    .bottom-bar {
+      position: absolute;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 500;
+    }
+
+    /* 실행 취소 & 알림 토스트 바 */
+    .toast-bar {
+      position: fixed;
+      bottom: max(56px, calc(env(safe-area-inset-bottom) + 48px));
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(24, 24, 27, 0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #fff;
+      padding: 9px 16px;
+      border-radius: 24px;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      z-index: 1800;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      white-space: nowrap;
+    }
+    .toast-bar.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+    .toast-undo-btn {
+      background: #2ed573;
+      color: #111;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .drawer-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 170px;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: 0 -6px 25px rgba(0,0,0,0.18);
+      border-radius: 20px 20px 0 0;
+      z-index: 900;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      padding: 12px 16px;
+    }
+    .drawer-panel.open { transform: translateY(0); }
+
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .drawer-title { font-size: 13px; font-weight: 700; color: #222; }
+    .drawer-close { background: none; border: none; font-size: 16px; cursor: pointer; color: #888; padding: 4px; }
+
+    .drawer-list {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      align-items: center;
+      flex: 1;
+    }
+    .drawer-item {
+      flex: 0 0 74px;
+      height: 84px;
+      background: #f1f2f6;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 5px;
+      text-align: center;
+    }
+    .drawer-item img { max-width: 46px; max-height: 46px; object-fit: contain; }
+    .drawer-item span { font-size: 10px; color: #555; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+
+    /* ========================================================
+       6. 커스텀 모달 UI (브라우저 기본 alert/prompt 완전 대체)
+       ======================================================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.48);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1500;
+      padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal-card {
+      background: #ffffff;
+      width: 100%;
+      max-width: 350px;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.28);
+      max-height: 88vh;
+      overflow-y: auto;
+    }
+    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 12px; color: #111; }
+
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: #666; margin-bottom: 5px; }
+    .form-group input[type="text"], .form-group textarea, .form-group select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      font-size: 13px;
+      outline: none;
+      font-family: inherit;
+    }
+    .form-group textarea { resize: none; height: 56px; }
+
+    .img-upload-box {
+      width: 100%;
+      height: 110px;
+      border: 2px dashed #ddd;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      overflow: hidden;
+      background: #fafafa;
+      position: relative;
+    }
+    .img-upload-box img { max-width: 90%; max-height: 90%; object-fit: contain; display: none; }
+    .img-upload-box span { font-size: 12px; color: #888; }
+
+    .options-row { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .checkbox-row { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #333; cursor: pointer; }
+
+    .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .modal-actions button { flex: 1; padding: 11px; border-radius: 12px; border: none; font-weight: 600; font-size: 13px; cursor: pointer; }
+    .btn-cancel { background: #eee; color: #555; }
+    .btn-confirm { background: #111; color: #fff; }
+    .btn-danger { background: #ffe3e6; color: #e03131; }
+
+    .setting-opt {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .setting-opt.selected { border-color: #111; background: #f8f9fa; font-weight: 600; }
+
+    .backup-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .backup-btn {
+      padding: 10px 8px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      background: #f8f9fa;
+      font-size: 12px;
+      font-weight: 600;
+      color: #222;
+      cursor: pointer;
+      text-align: center;
+    }
+    .backup-btn:active { background: #eee; }
+  </style>
+</head>
+<body>
+
+  <div id="dropOverlay">보드 위에 사진을 놓아 마그넷 생성 📷</div>
+
+  <!-- 슬림 상단 네비게이션 (사진 공간 확보를 위해 컴팩트하게 배치) -->
+  <div class="top-bar">
+    <div class="top-left-group">
+      <button class="top-btn btn-add" onclick="openCreateModal()">+ 마그넷</button>
+      <button class="top-btn btn-deco" onclick="openDecoModal()">🏷️ 소품</button>
+      <button class="top-btn btn-icon-only" onclick="alignAllSplitGrid()" title="유형별 분리 정렬">▦</button>
+    </div>
+
+    <div class="top-center-switcher">
+      <button class="board-nav-btn" onclick="prevBoard()" title="이전 보드">◀</button>
+      <span class="board-name-display" id="boardNameDisplay" onclick="openBoardManageModal()" title="보드 관리 / 이름 변경">기본 보드</span>
+      <button class="board-nav-btn" onclick="nextBoard()" title="다음 보드">▶</button>
+      <button class="board-nav-btn" onclick="addNewBoard()" title="새 보드 추가" style="font-weight:bold; color:#0984e3;">+</button>
+    </div>
+
+    <div class="top-right-group">
+      <button class="top-btn btn-icon-only" onclick="openSettingsModal()" title="설정 및 백업">⚙️</button>
+    </div>
+  </div>
+
+  <!-- 무한 뷰포트 & 가상 월드 좌표계 -->
+  <div id="board-viewport" class="bg-metal" onclick="deselectAll(event)">
+    <div id="board-world">
+      <div id="snapGuideX" class="snap-guide snap-guide-x"></div>
+      <div id="snapGuideY" class="snap-guide snap-guide-y"></div>
+    </div>
+  </div>
+
+  <!-- 실행 취소 & 시스템 알림 토스트 -->
+  <div class="toast-bar" id="toastBar">
+    <span id="toastMessage">알림</span>
+    <button class="toast-undo-btn" id="toastUndoBtn" style="display:none;" onclick="undoLastDelete()">되돌리기</button>
+  </div>
+
+  <!-- 하단 슬림 툴바 -->
+  <div class="bottom-bar">
+    <button class="top-btn" onclick="resetZoomPan()">🔍 100%</button>
+    <button class="top-btn btn-add" onclick="toggleDrawer()">🗄️ 서랍</button>
+  </div>
+
+  <!-- 아카이브 서랍 패널 -->
+  <div class="drawer-panel" id="archiveDrawer">
+    <div class="drawer-header">
+      <div class="drawer-title">보관된 마그넷 서랍</div>
+      <button class="drawer-close" onclick="toggleDrawer()">✕</button>
+    </div>
+    <div class="drawer-list" id="drawerList"></div>
+  </div>
+
+  <!-- [모달 1] 마그넷 제작 모달 -->
+  <div class="modal-overlay" id="createModal">
+    <div class="modal-card">
+      <div class="modal-title">사물 마그넷 추가</div>
+
+      <div class="form-group">
+        <label>사진 첨부 (추억, 메달, 굿즈, 책표지 등)</label>
+        <div class="img-upload-box" onclick="document.getElementById('magnetImgInput').click()">
+          <span id="uploadPlaceholder">📷 탭하여 사진 첨부</span>
+          <img id="previewImg" alt="미리보기" />
+        </div>
+        <input type="file" id="magnetImgInput" accept="image/*" style="display:none;" onchange="handleImageUpload(event)" />
+        
+        <div class="options-row">
+          <label class="checkbox-row" style="color: #0984e3;">
+            <input type="checkbox" id="isBookCover" onchange="handleBookCoverToggle()" />
+            📖 책표지 / 사각 포토 (배경 누끼 안 따기)
+          </label>
+
+          <label class="checkbox-row" id="autoBgRemoveRow">
+            <input type="checkbox" id="autoBgRemove" checked onchange="toggleBgRemoval()" />
+            정밀 외곽 플러드필 누끼 적용
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>고정 핀 스타일</label>
+        <select id="pinStyle">
+          <option value="none">없음 (자석 고정)</option>
+          <option value="tape">마스킹 테이프 🎗️</option>
+          <option value="dot">미니 원형 자석 🔴</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>뒷면 자석 메모 (선택 사항)</label>
+        <textarea id="magnetMemo" placeholder="날짜나 간직하고 싶은 짧은 추억을 남겨보세요."></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('createModal')">취소</button>
+        <button class="btn-confirm" onclick="submitCreateMagnet()">보드에 부착</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- [모달 2] 소품 추가 모달 -->
+  <div class="modal-overlay" id="decoModal">
+    <div class="modal-card">
+      <div class="modal-title">소품 추가</div>
+      <div class="form-group">
+        <label>소품 종류 선택</label>
+        <select id="decoSelect" onchange="handleDecoTypeChange()">
+          <option value="tape_yellow">노랑 마스킹 테이프 🎗️</option>
+          <option value="tape_mint">민트 마스킹 테이프 🌿</option>
+          <option value="tape_pink">핑크 체크 테이프 🎀</option>
+          <option value="text_black">블랙 라벨 텍스트 스티커 🏷️</option>
+          <option value="text_kraft">크라프트 텍스트 스티커 📜</option>
+          <option value="star_badge">골드 스타 뱃지 ⭐</option>
+          <option value="heart_badge">하트 마그넷 💖</option>
+          <option value="pin_red">황동 압정 📌</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="textStickerGroup" style="display: none;">
+        <label>라벨 문구 입력 (앞면에 바로 표시)</label>
+        <input type="text" id="stickerTextInput" placeholder="예: 2026.11 제주여행" maxlength="20" />
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('decoModal')">취소</button>
+        <button class="btn-confirm" onclick="submitCreateDeco()">보드에 얹기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- [모달 3] 마그넷 수정 모달 -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-card">
+      <div class="modal-title">마그넷 메모 수정</div>
+      <div class="form-group">
+        <label>뒷면 자석 메모</label>
+        <textarea id="editMagnetMemo"></textarea>
+      </div>
+      <div class="form-group">
+        <label>고정 핀 변경</label>
+        <select id="editPinStyle">
+          <option value="none">없음</option>
+          <option value="tape">마스킹 테이프 🎗️</option>
+          <option value="dot">미니 원형 자석 🔴</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('editModal')">취소</button>
+        <button class="btn-confirm" onclick="submitEditMagnet()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- [모달 4] 보드 관리 모달 (커스텀 이름 변경 & 보드 삭제) -->
+  <div class="modal-overlay" id="boardManageModal">
+    <div class="modal-card">
+      <div class="modal-title">현재 보드 관리</div>
+      <div class="form-group">
+        <label>보드 이름</label>
+        <input type="text" id="boardRenameInput" placeholder="보드 이름 입력" maxlength="16" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="deleteBoardBtn" onclick="deleteCurrentBoard()">보드 삭제</button>
+        <button class="btn-cancel" onclick="closeModal('boardManageModal')">취소</button>
+        <button class="btn-confirm" onclick="submitRenameBoard()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- [모달 5] 환경설정 & 백업/스냅샷 모달 -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-card">
+      <div class="modal-title">보드 환경 설정</div>
+
+      <div class="form-group">
+        <label>보드 배경 질감</label>
+        <div class="setting-opt" id="opt-metal" onclick="selectBg('bg-metal')">
+          <span>❄️ 냉장고 스테인리스</span>
+        </div>
+        <div class="setting-opt" id="opt-pegboard" onclick="selectBg('bg-pegboard')">
+          <span>🔩 다크 철제 타공판</span>
+        </div>
+        <div class="setting-opt" id="opt-cork" onclick="selectBg('bg-cork')">
+          <span>🪵 빈티지 코르크</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>사운드 및 피드백</label>
+        <label class="checkbox-row" style="margin-top: 6px;">
+          <input type="checkbox" id="settingSoundToggle" checked onchange="toggleSoundSetting()" />
+          🔊 자석 흡착 효과음 & 햅틱 진동
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label>데이터 백업 & 이미지 저장</label>
+        <div class="backup-grid">
+          <button class="backup-btn" onclick="exportBoardJson()">💾 백업 내보내기</button>
+          <button class="backup-btn" onclick="document.getElementById('importJsonInput').click()">📂 백업 불러오기</button>
+          <button class="backup-btn" style="grid-column: span 2; background: #111; color: #fff;" onclick="exportBoardSnapshot()">📸 현재 보드 스냅샷 저장</button>
+        </div>
+        <input type="file" id="importJsonInput" accept=".json" style="display:none;" onchange="importBoardJson(event)" />
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-confirm" onclick="closeModal('settingsModal')">완료</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'MAGNET_BOARD_MASTER_V9';
+    const boardWorld = document.getElementById('board-world');
+    const boardViewport = document.getElementById('board-viewport');
+    const boardNameDisplay = document.getElementById('boardNameDisplay');
+    const snapGuideX = document.getElementById('snapGuideX');
+    const snapGuideY = document.getElementById('snapGuideY');
+    const dropOverlay = document.getElementById('dropOverlay');
+
+    // 배포 친화적 데이터 스키마 (userId 격리 구조)
+    let appData = {
+      version: '9.0',
+      userId: 'guest_user',
+      activeBoardIndex: 0,
+      bg: 'bg-metal',
+      soundEnabled: true,
+      boards: [
+        { id: 'b1', name: '내 보드 1', magnets: [] },
+        { id: 'b2', name: '여행 & 추억', magnets: [] }
+      ]
+    };
+
+    let selectedMagnetId = null;
+    let editingMagnetId = null;
+    let rawImageData = '';
+    let processedImageData = '';
+    let imageAspectRatio = 1.0;
+
+    let isMagnetInteracting = false;
+
+    // 실행 취소(Undo) 상태 버퍼
+    let lastDeletedRecord = null;
+    let toastTimeout = null;
+
+    // 모바일에서 첫 진입 시 한눈에 들어오도록 초기 스케일 최적화
+    const isMobile = window.innerWidth < 600;
+    let panState = {
+      x: isMobile ? 20 : window.innerWidth / 2 - 200,
+      y: isMobile ? 70 : window.innerHeight / 2 - 150,
+      scale: isMobile ? 0.9 : 1.0,
+      isPanning: false,
+      startX: 0,
+      startY: 0,
+      initialDist: 0,
+      initialScale: 1.0
+    };
+
+    let audioCtx = null;
+    function playMagnetSnapSound() {
+      if (!appData.soundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const now = audioCtx.currentTime;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(35, now + 0.05);
+
+        gain.gain.setValueAtTime(0.7, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.06);
+
+        const clickOsc = audioCtx.createOscillator();
+        const clickGain = audioCtx.createGain();
+        clickOsc.type = 'square';
+        clickOsc.frequency.setValueAtTime(800, now);
+        clickOsc.frequency.exponentialRampToValueAtTime(120, now + 0.02);
+
+        clickGain.gain.setValueAtTime(0.4, now);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+
+        clickOsc.connect(clickGain);
+        clickGain.connect(audioCtx.destination);
+        clickOsc.start(now);
+        clickOsc.stop(now + 0.02);
+
+        if (navigator.vibrate) navigator.vibrate(12);
+      } catch (e) {
+        console.warn('Audio play failed:', e);
+      }
+    }
+
+    // 커스텀 토스트 메시지 (alert 대체 및 Undo 실행 취소 지원)
+    function showToast(msg, showUndo = false) {
+      const bar = document.getElementById('toastBar');
+      const msgEl = document.getElementById('toastMessage');
+      const undoBtn = document.getElementById('toastUndoBtn');
+
+      msgEl.innerText = msg;
+      undoBtn.style.display = showUndo ? 'inline-block' : 'none';
+
+      bar.classList.add('show');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        bar.classList.remove('show');
+      }, showUndo ? 4000 : 2200);
+    }
+
+    function init() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          appData = JSON.parse(saved);
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        const medalSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="#f1c40f"/><polygon points="50,22 58,38 76,40 62,54 66,72 50,62 34,72 38,54 24,40 42,38" fill="#d35400"/></svg>`;
+        const bookSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 110"><rect x="5" y="5" width="70" height="100" rx="4" fill="#ffffff" stroke="#ddd" stroke-width="2"/><rect x="12" y="14" width="56" height="40" fill="#3498db"/><text x="40" y="75" font-size="10" text-anchor="middle" font-weight="bold" fill="#2c3e50">WHITE BOOK</text></svg>`;
+
+        appData.boards[0].magnets = [
+          {
+            id: 'm1',
+            img: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(medalSvg),
+            x: 40, y: 40, width: 100, height: 100, aspect: 1, rot: 0,
+            memo: '대회 참가 기념 메달 🎖️', date: '2026.04.12', flipped: false, isBook: false, isDeco: false, pin: 'none', z: 10
+          },
+          {
+            id: 'm2',
+            img: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(bookSvg),
+            x: 180, y: 40, width: 90, height: 124, aspect: 90/124, rot: 0,
+            memo: '올해의 완독 책표지 📖', date: '2026.05.20', flipped: false, isBook: true, isDeco: false, pin: 'tape', z: 11
+          }
+        ];
+        saveStorage();
+      }
+
+      applyBg(appData.bg || 'bg-metal');
+      document.getElementById('settingSoundToggle').checked = appData.soundEnabled !== false;
+      renderCurrentBoard();
+      setupInfiniteCanvas();
+      setupDirectEvents();
+      updateWorldTransform();
+    }
+
+    function saveStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      } catch (e) {
+        showToast('저장 공간이 부족합니다. 불필요한 마그넷을 정리해 주세요.');
+      }
+    }
+
+    function getCurrentBoard() {
+      if (appData.activeBoardIndex >= appData.boards.length) {
+        appData.activeBoardIndex = 0;
+      }
+      return appData.boards[appData.activeBoardIndex];
+    }
+
+    function updateWorldTransform() {
+      boardWorld.style.transform = `translate(${panState.x}px, ${panState.y}px) scale(${panState.scale})`;
+      boardViewport.style.backgroundPosition = `${panState.x}px ${panState.y}px`;
+    }
+
+    function resetZoomPan() {
+      const mobile = window.innerWidth < 600;
+      panState.scale = mobile ? 0.9 : 1.0;
+      panState.x = mobile ? 20 : window.innerWidth / 2 - 200;
+      panState.y = mobile ? 70 : window.innerHeight / 2 - 150;
+      updateWorldTransform();
+      playMagnetSnapSound();
+    }
+
+    // ========================================================
+    // 7. 무한 캔버스 엔진 (핀치 줌 & 두 손가락 마그넷 제스처)
+    // ========================================================
+    function setupInfiniteCanvas() {
+      // PC 휠 줌
+      boardViewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+        const newScale = Math.max(0.15, Math.min(3.5, panState.scale * zoomFactor));
+
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+
+        panState.x = mouseX - (mouseX - panState.x) * (newScale / panState.scale);
+        panState.y = mouseY - (mouseY - panState.y) * (newScale / panState.scale);
+        panState.scale = newScale;
+
+        updateWorldTransform();
+      }, { passive: false });
+
+      // PC 배경 팬
+      boardViewport.addEventListener('mousedown', (e) => {
+        if (isMagnetInteracting || e.target.closest('.magnet-wrapper') || e.target.closest('.top-bar') || e.target.closest('.bottom-bar')) return;
+        panState.isPanning = true;
+        panState.startX = e.clientX - panState.x;
+        panState.startY = e.clientY - panState.y;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!panState.isPanning || isMagnetInteracting) return;
+        panState.x = e.clientX - panState.startX;
+        panState.y = e.clientY - panState.startY;
+        updateWorldTransform();
+      });
+
+      window.addEventListener('mouseup', () => { panState.isPanning = false; });
+
+      // 모바일 배경 팬 & 핀치 줌
+      boardViewport.addEventListener('touchstart', (e) => {
+        if (isMagnetInteracting || e.target.closest('.magnet-wrapper') || e.target.closest('.top-bar') || e.target.closest('.bottom-bar')) return;
+        if (e.touches.length >= 2) {
+          if (e.cancelable) e.preventDefault();
+          panState.isPanning = true;
+          panState.initialDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          panState.initialScale = panState.scale;
+        } else if (e.touches.length === 1) {
+          panState.isPanning = true;
+          panState.startX = e.touches[0].clientX - panState.x;
+          panState.startY = e.touches[0].clientY - panState.y;
+        }
+      }, { passive: false });
+
+      boardViewport.addEventListener('touchmove', (e) => {
+        if (!panState.isPanning || isMagnetInteracting) return;
+        if (e.cancelable) e.preventDefault();
+
+        if (e.touches.length >= 2) {
+          const currentDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          const currentFocal = {
+            x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+            y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+          };
+
+          const factor = currentDist / panState.initialDist;
+          const newScale = Math.max(0.15, Math.min(3.5, panState.initialScale * factor));
+
+          panState.x = currentFocal.x - (currentFocal.x - panState.x) * (newScale / panState.scale);
+          panState.y = currentFocal.y - (currentFocal.y - panState.y) * (newScale / panState.scale);
+          panState.scale = newScale;
+
+          updateWorldTransform();
+        } else if (e.touches.length === 1) {
+          panState.x = e.touches[0].clientX - panState.startX;
+          panState.y = e.touches[0].clientY - panState.startY;
+          updateWorldTransform();
+        }
+      }, { passive: false });
+
+      boardViewport.addEventListener('touchend', (e) => {
+        if (e.touches.length === 1) {
+          panState.startX = e.touches[0].clientX - panState.x;
+          panState.startY = e.touches[0].clientY - panState.y;
+        } else if (e.touches.length === 0) {
+          panState.isPanning = false;
+        }
+      });
+    }
+
+    function renderCurrentBoard() {
+      const curBoard = getCurrentBoard();
+      boardNameDisplay.innerText = curBoard.name;
+      selectedMagnetId = null;
+
+      const oldMagnets = boardWorld.querySelectorAll('.magnet-wrapper');
+      oldMagnets.forEach(el => el.remove());
+
+      curBoard.magnets.forEach(m => createMagnetElement(m));
+      renderArchiveDrawer();
+    }
+
+    // ========================================================
+    // 8. 무제한 보드 생성 / 전환 / 이름 변경 / 삭제
+    // ========================================================
+    function prevBoard() {
+      appData.activeBoardIndex = (appData.activeBoardIndex - 1 + appData.boards.length) % appData.boards.length;
+      saveStorage();
+      renderCurrentBoard();
+      playMagnetSnapSound();
+    }
+
+    function nextBoard() {
+      appData.activeBoardIndex = (appData.activeBoardIndex + 1) % appData.boards.length;
+      saveStorage();
+      renderCurrentBoard();
+      playMagnetSnapSound();
+    }
+
+    function addNewBoard() {
+      const newNum = appData.boards.length + 1;
+      const newBoard = {
+        id: 'board_' + Date.now(),
+        name: `새 보드 ${newNum}`,
+        magnets: []
+      };
+      appData.boards.push(newBoard);
+      appData.activeBoardIndex = appData.boards.length - 1;
+      saveStorage();
+      renderCurrentBoard();
+      playMagnetSnapSound();
+      showToast(`'${newBoard.name}' 생성됨`);
+    }
+
+    function openBoardManageModal() {
+      const cur = getCurrentBoard();
+      document.getElementById('boardRenameInput').value = cur.name;
+      const delBtn = document.getElementById('deleteBoardBtn');
+      delBtn.style.display = appData.boards.length > 1 ? 'block' : 'none';
+      document.getElementById('boardManageModal').classList.add('active');
+    }
+
+    function submitRenameBoard() {
+      const cur = getCurrentBoard();
+      const val = document.getElementById('boardRenameInput').value.trim();
+      if (val) {
+        cur.name = val;
+        boardNameDisplay.innerText = cur.name;
+        saveStorage();
+        showToast('보드 이름이 변경되었습니다.');
+      }
+      closeModal('boardManageModal');
+    }
+
+    function deleteCurrentBoard() {
+      if (appData.boards.length <= 1) return;
+      const deletedName = getCurrentBoard().name;
+      appData.boards.splice(appData.activeBoardIndex, 1);
+      appData.activeBoardIndex = Math.max(0, appData.activeBoardIndex - 1);
+      saveStorage();
+      renderCurrentBoard();
+      closeModal('boardManageModal');
+      showToast(`'${deletedName}' 보드가 삭제되었습니다.`);
+    }
+
+    // 유형별 분리 정렬 (모바일 화면 폭 반영)
+    function alignAllSplitGrid() {
+      const curBoard = getCurrentBoard();
+      if (!curBoard.magnets.length) return;
+
+      const paddingLeft = 30;
+      const startY = 30;
+      const gap = 20;
+      const rowWidth = Math.max(320, Math.min(650, window.innerWidth - 60));
+
+      const mains = curBoard.magnets.filter(m => !m.isDeco);
+      const decos = curBoard.magnets.filter(m => m.isDeco);
+
+      let currentX = paddingLeft;
+      let currentY = startY;
+      let maxHeightInRow = 0;
+
+      mains.forEach(m => {
+        const w = m.width || 100;
+        const h = m.height || 100;
+
+        if (currentX + w - paddingLeft > rowWidth) {
+          currentX = paddingLeft;
+          currentY += maxHeightInRow + gap;
+          maxHeightInRow = 0;
+        }
+
+        m.x = currentX;
+        m.y = currentY;
+        m.rot = 0;
+        maxHeightInRow = Math.max(maxHeightInRow, h);
+        currentX += w + gap;
+
+        const el = document.getElementById(m.id);
+        if (el) {
+          el.style.left = `${m.x}px`;
+          el.style.top = `${m.y}px`;
+          el.style.transform = `rotate(0deg)`;
+        }
+      });
+
+      if (mains.length > 0) {
+        currentY += maxHeightInRow + gap * 1.8;
+      }
+      currentX = paddingLeft;
+      maxHeightInRow = 0;
+
+      decos.forEach(m => {
+        const w = m.width || 80;
+        const h = m.height || 40;
+
+        if (currentX + w - paddingLeft > rowWidth) {
+          currentX = paddingLeft;
+          currentY += maxHeightInRow + gap;
+          maxHeightInRow = 0;
+        }
+
+        m.x = currentX;
+        m.y = currentY;
+        m.rot = 0;
+        maxHeightInRow = Math.max(maxHeightInRow, h);
+        currentX += w + gap;
+
+        const el = document.getElementById(m.id);
+        if (el) {
+          el.style.left = `${m.x}px`;
+          el.style.top = `${m.y}px`;
+          el.style.transform = `rotate(0deg)`;
+        }
+      });
+
+      saveStorage();
+      playMagnetSnapSound();
+      showToast('유형별로 깔끔하게 정렬되었습니다.');
+    }
+
+    function toggleDrawer() {
+      const drawer = document.getElementById('archiveDrawer');
+      drawer.classList.toggle('open');
+      renderArchiveDrawer();
+    }
+
+    function renderArchiveDrawer() {
+      const list = document.getElementById('drawerList');
+      list.innerHTML = '';
+      const curBoard = getCurrentBoard();
+
+      curBoard.magnets.forEach(m => {
+        const item = document.createElement('div');
+        item.className = 'drawer-item';
+        item.innerHTML = `
+          <img src="${m.img}" alt="썸네일" />
+          <span>${m.memo || '소품'}</span>
+        `;
+        item.onclick = () => {
+          const el = document.getElementById(m.id);
+          if (el) {
+            selectMagnet(el);
+            triggerSnap(el);
+            const w = m.width || 100;
+            const h = m.height || 100;
+            panState.x = -(m.x + w / 2) * panState.scale + window.innerWidth / 2;
+            panState.y = -(m.y + h / 2) * panState.scale + window.innerHeight / 2;
+            updateWorldTransform();
+          }
+        };
+        list.appendChild(item);
+      });
+    }
+
+    function applyBg(bgClass) {
+      boardViewport.className = bgClass;
+      appData.bg = bgClass;
+      saveStorage();
+
+      document.querySelectorAll('.setting-opt').forEach(el => el.classList.remove('selected'));
+      const activeOpt = document.getElementById('opt-' + bgClass.replace('bg-', ''));
+      if (activeOpt) activeOpt.classList.add('selected');
+    }
+
+    function selectBg(bgClass) { applyBg(bgClass); }
+
+    function toggleSoundSetting() {
+      appData.soundEnabled = document.getElementById('settingSoundToggle').checked;
+      saveStorage();
+    }
+
+    // ========================================================
+    // 9. JSON 백업 / 복원 & 보드 스냅샷 이미지 저장
+    // ========================================================
+    function exportBoardJson() {
+      const dataStr = JSON.stringify(appData, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateTag = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `magnet-board-backup-${dateTag}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('백업 파일이 다운로드되었습니다.');
+    }
+
+    function importBoardJson(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const imported = JSON.parse(evt.target.result);
+          if (imported && Array.isArray(imported.boards) && imported.boards.length > 0) {
+            appData = imported;
+            saveStorage();
+            applyBg(appData.bg || 'bg-metal');
+            renderCurrentBoard();
+            closeModal('settingsModal');
+            showToast('백업 데이터를 성공적으로 불러왔습니다.');
+          } else {
+            showToast('올바른 보드 백업 파일이 아닙니다.');
+          }
+        } catch (err) {
+          showToast('백업 파일을 읽는 중 오류가 발생했습니다.');
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    }
+
+    async function exportBoardSnapshot() {
+      const curBoard = getCurrentBoard();
+      if (!curBoard.magnets.length) {
+        showToast('저장할 마그넷이 보드에 없습니다.');
+        return;
+      }
+
+      closeModal('settingsModal');
+      showToast('스냅샷 이미지를 생성하고 있습니다...');
+
+      // 현재 보드 내 마그넷들의 전체 바운딩 박스 계산
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      curBoard.magnets.forEach(m => {
+        const w = m.width || 100;
+        const h = m.height || 100;
+        minX = Math.min(minX, m.x - 40);
+        minY = Math.min(minY, m.y - 40);
+        maxX = Math.max(maxX, m.x + w + 40);
+        maxY = Math.max(maxY, m.y + h + 40);
+      });
+
+      const canvasW = Math.max(400, Math.round(maxX - minX));
+      const canvasH = Math.max(400, Math.round(maxY - minY));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = canvasW;
+      canvas.height = canvasH;
+      const ctx = canvas.getContext('2d');
+
+      // 배경 색상 렌더링
+      if (appData.bg === 'bg-pegboard') {
+        ctx.fillStyle = '#1f2229';
+        ctx.fillRect(0, 0, canvasW, canvasH);
+        ctx.fillStyle = '#0d0f12';
+        for (let gx = 16; gx < canvasW; gx += 32) {
+          for (let gy = 16; gy < canvasH; gy += 32) {
+            ctx.beginPath();
+            ctx.arc(gx, gy, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      } else if (appData.bg === 'bg-cork') {
+        ctx.fillStyle = '#b37e42';
+        ctx.fillRect(0, 0, canvasW, canvasH);
+      } else {
+        const grad = ctx.createLinearGradient(0, 0, canvasW, canvasH);
+        grad.addColorStop(0, '#d8dce4');
+        grad.addColorStop(0.5, '#b8bcc6');
+        grad.addColorStop(1, '#9fa5b1');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvasW, canvasH);
+      }
+
+      // z-index 순으로 정렬하여 마그넷 그리기
+      const sorted = [...curBoard.magnets].sort((a, b) => (a.z || 10) - (b.z || 10));
+
+      for (const m of sorted) {
+        await new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            const w = m.width || 100;
+            const h = m.height || 100;
+            const cx = (m.x - minX) + w / 2;
+            const cy = (m.y - minY) + h / 2;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(((m.rot || 0) * Math.PI) / 180);
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+            ctx.shadowBlur = 12;
+            ctx.shadowOffsetY = 6;
+            ctx.drawImage(img, -w / 2, -h / 2, w, h);
+            ctx.restore();
+            resolve();
+          };
+          img.onerror = resolve;
+          img.src = m.img;
+        });
+      }
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `${curBoard.name}-snapshot.png`;
+      a.click();
+      showToast('보드 스냅샷이 저장되었습니다 📸');
+    }
+
+    function openCreateModal(injectedImg = null) {
+      resetCreateForm();
+      if (injectedImg) processUploadedSource(injectedImg);
+      document.getElementById('createModal').classList.add('active');
+    }
+
+    function openDecoModal() {
+      handleDecoTypeChange();
+      document.getElementById('decoModal').classList.add('active');
+    }
+
+    function handleDecoTypeChange() {
+      const val = document.getElementById('decoSelect').value;
+      const textGroup = document.getElementById('textStickerGroup');
+      textGroup.style.display = val.startsWith('text_') ? 'block' : 'none';
+    }
+
+    function openSettingsModal() {
+      applyBg(appData.bg);
+      document.getElementById('settingsModal').classList.add('active');
+    }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    function handleImageUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => processUploadedSource(event.target.result);
+      reader.readAsDataURL(file);
+    }
+
+    function processUploadedSource(src) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = src;
+      img.onload = () => {
+        const maxSide = 700;
+        let w = img.width;
+        let h = img.height;
+        imageAspectRatio = w / h;
+
+        if (w > maxSide || h > maxSide) {
+          if (w > h) {
+            h = Math.round((h * maxSide) / w);
+            w = maxSide;
+          } else {
+            w = Math.round((w * maxSide) / h);
+            h = maxSide;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+
+        rawImageData = canvas.toDataURL('image/png', 0.85);
+        updateProcessedImage();
+      };
+    }
+
+    function handleBookCoverToggle() {
+      const isBook = document.getElementById('isBookCover').checked;
+      const bgRemoveCheckbox = document.getElementById('autoBgRemove');
+      const bgRemoveRow = document.getElementById('autoBgRemoveRow');
+
+      if (isBook) {
+        bgRemoveCheckbox.checked = false;
+        bgRemoveRow.style.opacity = '0.5';
+        bgRemoveRow.style.pointerEvents = 'none';
+      } else {
+        bgRemoveCheckbox.checked = true;
+        bgRemoveRow.style.opacity = '1';
+        bgRemoveRow.style.pointerEvents = 'auto';
+      }
+      updateProcessedImage();
+    }
+
+    async function toggleBgRemoval() { await updateProcessedImage(); }
+
+    async function updateProcessedImage() {
+      if (!rawImageData) return;
+      const isBook = document.getElementById('isBookCover').checked;
+      const isBgRemove = document.getElementById('autoBgRemove').checked;
+
+      if (isBook || !isBgRemove) {
+        processedImageData = rawImageData;
+      } else {
+        processedImageData = await removeBackgroundFloodFill(rawImageData);
+      }
+
+      const preview = document.getElementById('previewImg');
+      preview.src = processedImageData;
+      preview.style.display = 'block';
+      document.getElementById('uploadPlaceholder').style.display = 'none';
+    }
+
+    function removeBackgroundFloodFill(imageSrc, tolerance = 38) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = imageSrc;
+
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const w = img.width;
+          const h = img.height;
+          canvas.width = w;
+          canvas.height = h;
+
+          ctx.drawImage(img, 0, 0);
+          const imgData = ctx.getImageData(0, 0, w, h);
+          const d = imgData.data;
+
+          const bgR = d[0], bgG = d[1], bgB = d[2];
+          const visited = new Uint8Array(w * h);
+          const queue = [];
+
+          for (let x = 0; x < w; x++) {
+            queue.push(x, 0);
+            queue.push(x, h - 1);
+            visited[x] = 1;
+            visited[x + (h - 1) * w] = 1;
+          }
+          for (let y = 0; y < h; y++) {
+            queue.push(0, y);
+            queue.push(w - 1, y);
+            visited[y * w] = 1;
+            visited[w - 1 + y * w] = 1;
+          }
+
+          let head = 0;
+          while (head < queue.length) {
+            const cx = queue[head++];
+            const cy = queue[head++];
+            const idx = (cy * w + cx) * 4;
+
+            const r = d[idx], g = d[idx + 1], b = d[idx + 2];
+            const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+
+            if (dist < tolerance) {
+              d[idx + 3] = 0;
+
+              const neighbors = [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]];
+              for (const [nx, ny] of neighbors) {
+                if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                  const nPos = ny * w + nx;
+                  if (!visited[nPos]) {
+                    visited[nPos] = 1;
+                    queue.push(nx, ny);
+                  }
+                }
+              }
+            }
+          }
+
+          ctx.putImageData(imgData, 0, 0);
+          resolve(canvas.toDataURL('image/png', 0.85));
+        };
+      });
+    }
+
+    function resetCreateForm() {
+      document.getElementById('magnetImgInput').value = '';
+      document.getElementById('magnetMemo').value = '';
+      document.getElementById('pinStyle').value = 'none';
+      document.getElementById('isBookCover').checked = false;
+      document.getElementById('autoBgRemove').checked = true;
+      document.getElementById('autoBgRemoveRow').style.opacity = '1';
+      document.getElementById('autoBgRemoveRow').style.pointerEvents = 'auto';
+
+      rawImageData = '';
+      processedImageData = '';
+      document.getElementById('previewImg').style.display = 'none';
+      document.getElementById('uploadPlaceholder').style.display = 'block';
+    }
+
+    function submitCreateMagnet() {
+      if (!processedImageData) {
+        showToast('사진을 먼저 첨부해 주세요 📷');
+        return;
+      }
+
+      const isBook = document.getElementById('isBookCover').checked;
+      const pin = document.getElementById('pinStyle').value;
+      const memo = document.getElementById('magnetMemo').value.trim();
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}.${String(today.getMonth()+1).padStart(2, '0')}.${String(today.getDate()).padStart(2, '0')}`;
+
+      let initialW = 105;
+      let initialH = Math.round(initialW / imageAspectRatio);
+
+      const centerX = Math.round((-panState.x + window.innerWidth / 2) / panState.scale);
+      const centerY = Math.round((-panState.y + window.innerHeight / 2) / panState.scale);
+      const maxZ = getCurrentBoard().magnets.reduce((max, m) => Math.max(max, m.z || 1), 10);
+
+      const newMagnet = {
+        id: 'mag_' + Date.now(),
+        img: processedImageData,
+        x: centerX - Math.round(initialW / 2),
+        y: centerY - Math.round(initialH / 2),
+        width: initialW,
+        height: initialH,
+        aspect: imageAspectRatio,
+        rot: 0,
+        memo: memo,
+        date: dateStr,
+        flipped: false,
+        isBook: isBook,
+        isDeco: false,
+        pin: pin,
+        z: maxZ + 1
+      };
+
+      getCurrentBoard().magnets.push(newMagnet);
+      createMagnetElement(newMagnet);
+      saveStorage();
+      closeModal('createModal');
+      renderArchiveDrawer();
+      playMagnetSnapSound();
+    }
+
+    function submitCreateDeco() {
+      const type = document.getElementById('decoSelect').value;
+      const textVal = document.getElementById('stickerTextInput').value.trim() || 'MEMO';
+
+      let rawSvg = '';
+      let isText = false;
+      let w = 80, h = 40;
+
+      if (type.startsWith('tape_')) {
+        w = 90; h = 32;
+        const colors = {
+          tape_yellow: '#f6e58d',
+          tape_mint: '#7bed9f',
+          tape_pink: '#ff9ff3'
+        };
+        const c = colors[type] || '#f6e58d';
+        rawSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 36"><rect width="100" height="36" rx="4" fill="${c}" fill-opacity="0.85"/><line x1="2" y1="0" x2="2" y2="36" stroke="#333" stroke-dasharray="2 2" stroke-opacity="0.3"/><line x1="98" y1="0" x2="98" y2="36" stroke="#333" stroke-dasharray="2 2" stroke-opacity="0.3"/></svg>`;
+      } else if (type.startsWith('text_')) {
+        isText = true;
+        w = 110; h = 34;
+        if (type === 'text_black') {
+          rawSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 36"><rect width="120" height="36" rx="4" fill="#222" stroke="#444" stroke-width="1.5"/><text x="60" y="23" font-family="-apple-system, sans-serif" font-size="12" font-weight="bold" fill="#fff" text-anchor="middle" letter-spacing="1">${textVal}</text></svg>`;
+        } else {
+          rawSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 36"><rect width="120" height="36" rx="4" fill="#d2b48c" fill-opacity="0.9"/><line x1="3" y1="0" x2="3" y2="36" stroke="#8b4513" stroke-dasharray="2 2" stroke-opacity="0.4"/><line x1="117" y1="0" x2="117" y2="36" stroke="#8b4513" stroke-dasharray="2 2" stroke-opacity="0.4"/><text x="60" y="23" font-family="-apple-system, sans-serif" font-size="12" font-weight="600" fill="#3e2723" text-anchor="middle">${textVal}</text></svg>`;
+        }
+      } else if (type === 'star_badge') {
+        w = 52; h = 52;
+        rawSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><polygon points="30,5 38,22 57,23 42,36 47,54 30,43 13,54 18,36 3,23 22,22" fill="#f9ca24" stroke="#f0932b" stroke-width="2"/></svg>`;
+      } else if (type === 'heart_badge') {
+        w = 52; h = 52;
+        rawSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60"><path d="M30,52 C30,52 6,36 6,20 C6,11 13,5 21,5 C26,5 30,9 30,9 C30,9 34,5 39,5 C47,5 54,11 54,20 C54,36 30,52 30,52 Z" fill="#eb4d4b"/></svg>`;
+      } else if (type === 'pin_red') {
+        w = 38; h = 38;
+        rawSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" fill="#e74c3c"/><circle cx="16" cy="16" r="6" fill="#ffffff" fill-opacity="0.4"/></svg>`;
+      }
+
+      const encodedSvg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(rawSvg);
+      const centerX = Math.round((-panState.x + window.innerWidth / 2) / panState.scale);
+      const centerY = Math.round((-panState.y + window.innerHeight / 2) / panState.scale);
+      const maxZ = getCurrentBoard().magnets.reduce((max, m) => Math.max(max, m.z || 1), 10);
+
+      const newMagnet = {
+        id: 'mag_deco_' + Date.now(),
+        img: encodedSvg,
+        x: centerX - Math.round(w / 2),
+        y: centerY - Math.round(h / 2),
+        width: w,
+        height: h,
+        aspect: w / h,
+        rot: Math.floor(Math.random() * 8) - 4,
+        memo: isText ? textVal : '소품 스티커',
+        date: '',
+        flipped: false,
+        isBook: false,
+        isDeco: true,
+        pin: 'none',
+        z: maxZ + 2
+      };
+
+      getCurrentBoard().magnets.push(newMagnet);
+      createMagnetElement(newMagnet);
+      saveStorage();
+      closeModal('decoModal');
+      document.getElementById('stickerTextInput').value = '';
+      playMagnetSnapSound();
+    }
+
+    function openEditModal(id) {
+      editingMagnetId = id;
+      const target = getCurrentBoard().magnets.find(m => m.id === id);
+      if (!target) return;
+
+      document.getElementById('editMagnetMemo').value = target.memo || '';
+      document.getElementById('editPinStyle').value = target.pin || 'none';
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    function submitEditMagnet() {
+      const target = getCurrentBoard().magnets.find(m => m.id === editingMagnetId);
+      const el = document.getElementById(editingMagnetId);
+      if (target && el) {
+        target.memo = document.getElementById('editMagnetMemo').value.trim();
+        target.pin = document.getElementById('editPinStyle').value;
+
+        el.querySelector('.back-memo-text').innerText = target.memo || '기록된 메모가 없습니다.';
+        el.className = `magnet-wrapper ${target.flipped ? 'flipped' : ''} ${target.isBook ? 'is-book' : ''} ${target.isDeco ? 'is-deco' : ''} ${target.pin === 'tape' ? 'pin-tape' : (target.pin === 'dot' ? 'pin-dot' : '')} selected`;
+
+        saveStorage();
+        renderArchiveDrawer();
+        closeModal('editModal');
+        showToast('메모가 수정되었습니다.');
+      }
+    }
+
+    function createMagnetElement(data) {
+      const el = document.createElement('div');
+      const pinClass = data.pin === 'tape' ? 'pin-tape' : (data.pin === 'dot' ? 'pin-dot' : '');
+      el.className = `magnet-wrapper ${data.flipped ? 'flipped' : ''} ${data.isBook ? 'is-book' : ''} ${data.isDeco ? 'is-deco' : ''} ${pinClass}`;
+      el.id = data.id;
+      el.style.left = `${data.x}px`;
+      el.style.top = `${data.y}px`;
+      el.style.width = `${data.width || 100}px`;
+      el.style.height = `${data.height || 100}px`;
+      el.style.zIndex = data.z || 10;
+      el.style.transform = `rotate(${data.rot || 0}deg)`;
+
+      el.innerHTML = `
+        <div class="transform-box">
+          <div class="tb-handle handle-flip" title="뒤집기 (메모)">↩️</div>
+          <div class="tb-handle handle-delete" title="삭제">✕</div>
+          <div class="tb-handle handle-scale" title="크기">⤡</div>
+          <div class="tb-handle handle-rotate" title="회전 (더블클릭시 0도 리셋)">🔄</div>
+          <div class="tb-handle handle-layer-up" title="앞으로">▲</div>
+          <div class="tb-handle handle-layer-down" title="뒤로">▼</div>
+          <div class="tb-handle handle-edit" title="수정">✏️</div>
+        </div>
+        <div class="magnet-card">
+          <div class="magnet-front">
+            <img src="${data.img}" alt="마그넷" />
+          </div>
+          <div class="magnet-back">
+            <div class="back-magnet-texture">
+              <span>RUBBER MAGNET</span>
+              <span>N-S</span>
+            </div>
+            <div class="back-memo-text">${data.memo || '기록된 메모가 없습니다.'}</div>
+            <div class="back-date">${data.date || ''}</div>
+          </div>
+        </div>
+      `;
+
+      attachMagnetEvents(el, data);
+      boardWorld.appendChild(el);
+    }
+
+    function selectMagnet(el) {
+      if (selectedMagnetId === el.id) return;
+      deselectAll();
+      selectedMagnetId = el.id;
+      el.classList.add('selected');
+    }
+
+    function deselectAll(e) {
+      if (e && e.target !== boardViewport && e.target !== boardWorld) return;
+      document.querySelectorAll('.magnet-wrapper').forEach(m => m.classList.remove('selected'));
+      selectedMagnetId = null;
+      hideGuides();
+    }
+
+    function flipMagnet(id, e) {
+      if (e) e.stopPropagation();
+      const targetData = getCurrentBoard().magnets.find(m => m.id === id);
+      const el = document.getElementById(id);
+      if (targetData && el && !targetData.isDeco) {
+        targetData.flipped = !targetData.flipped;
+        el.classList.toggle('flipped', targetData.flipped);
+        saveStorage();
+        playMagnetSnapSound();
+      }
+    }
+
+    // 삭제 및 실행 취소(Undo) 지원
+    function deleteMagnet(id, e) {
+      if (e) e.stopPropagation();
+      const curBoard = getCurrentBoard();
+      const targetIndex = curBoard.magnets.findIndex(m => m.id === id);
+      if (targetIndex === -1) return;
+
+      const deletedItem = curBoard.magnets[targetIndex];
+      lastDeletedRecord = {
+        boardId: curBoard.id,
+        item: JSON.parse(JSON.stringify(deletedItem))
+      };
+
+      curBoard.magnets.splice(targetIndex, 1);
+      document.getElementById(id)?.remove();
+
+      isMagnetInteracting = false;
+      saveStorage();
+      renderArchiveDrawer();
+      selectedMagnetId = null;
+
+      showToast(deletedItem.isDeco ? '소품이 삭제되었습니다.' : '마그넷이 삭제되었습니다.', true);
+    }
+
+    function undoLastDelete() {
+      if (!lastDeletedRecord) return;
+      const targetBoard = appData.boards.find(b => b.id === lastDeletedRecord.boardId);
+      if (targetBoard) {
+        targetBoard.magnets.push(lastDeletedRecord.item);
+        saveStorage();
+        if (getCurrentBoard().id === targetBoard.id) {
+          createMagnetElement(lastDeletedRecord.item);
+          renderArchiveDrawer();
+        }
+        playMagnetSnapSound();
+      }
+      lastDeletedRecord = null;
+      document.getElementById('toastBar').classList.remove('show');
+    }
+
+    function changeLayer(id, delta, e) {
+      if (e) e.stopPropagation();
+      const curBoard = getCurrentBoard();
+      const target = curBoard.magnets.find(m => m.id === id);
+      const el = document.getElementById(id);
+      if (target && el) {
+        target.z = Math.max(1, (target.z || 10) + delta);
+        el.style.zIndex = target.z;
+        saveStorage();
+        triggerSnap(el);
+      }
+    }
+
+    // ========================================================
+    // 10. 인터랙션 엔진 (드래그, 스마트 세트 이동, 투 핑거 핀치/회전)
+    // ========================================================
+    function attachMagnetEvents(el, data) {
+      const rotateHandle = el.querySelector('.handle-rotate');
+      const scaleHandle = el.querySelector('.handle-scale');
+      const deleteHandle = el.querySelector('.handle-delete');
+      const flipHandle = el.querySelector('.handle-flip');
+      const layerUpHandle = el.querySelector('.handle-layer-up');
+      const layerDownHandle = el.querySelector('.handle-layer-down');
+      const editHandle = el.querySelector('.handle-edit');
+
+      deleteHandle.addEventListener('click', (e) => deleteMagnet(data.id, e));
+      flipHandle.addEventListener('click', (e) => flipMagnet(data.id, e));
+      layerUpHandle.addEventListener('click', (e) => changeLayer(data.id, 2, e));
+      layerDownHandle.addEventListener('click', (e) => changeLayer(data.id, -2, e));
+      editHandle.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(data.id); });
+
+      rotateHandle.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        data.rot = 0;
+        el.style.transform = `rotate(0deg)`;
+        triggerSnap(el);
+        saveStorage();
+      });
+
+      el.addEventListener('mousedown', (e) => startDrag(e, el, data));
+      el.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          startTwoFingerGesture(e, el, data);
+        } else {
+          startDrag(e, el, data);
+        }
+      }, { passive: false });
+
+      rotateHandle.addEventListener('mousedown', (e) => startRotate(e, el, data));
+      rotateHandle.addEventListener('touchstart', (e) => startRotate(e, el, data), { passive: false });
+
+      scaleHandle.addEventListener('mousedown', (e) => startScale(e, el, data));
+      scaleHandle.addEventListener('touchstart', (e) => startScale(e, el, data), { passive: false });
+
+      let lastTap = 0;
+      el.addEventListener('touchend', (e) => {
+        if (e.target.closest('.transform-box')) return;
+        const curTime = new Date().getTime();
+        const tapLen = curTime - lastTap;
+        if (tapLen < 300 && tapLen > 0) {
+          if (data.isDeco) {
+            deleteMagnet(data.id, e);
+          } else {
+            flipMagnet(data.id, e);
+          }
+        }
+        lastTap = curTime;
+      });
+
+      el.addEventListener('dblclick', (e) => {
+        if (e.target.closest('.transform-box')) return;
+        if (data.isDeco) {
+          deleteMagnet(data.id, e);
+        } else {
+          flipMagnet(data.id, e);
+        }
+      });
+    }
+
+    // 모바일 마그넷 위 두 손가락 핀치 크기 & 회전 제스처
+    function startTwoFingerGesture(e, el, data) {
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      clearTimeout(pressTimer);
+      el.classList.remove('wiggling');
+      selectMagnet(el);
+
+      isMagnetInteracting = true;
+      el.classList.add('scaling');
+
+      const startW = data.width || 100;
+      const aspect = data.aspect || (startW / (data.height || 100));
+      const initialRot = data.rot || 0;
+
+      const t0 = e.touches[0];
+      const t1 = e.touches[1];
+      const initDist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+      const initAngle = Math.atan2(t1.clientY - t0.clientY, t1.clientX - t0.clientX);
+
+      function onTwoFingerMove(evt) {
+        if (evt.touches.length < 2) return;
+        if (evt.cancelable) evt.preventDefault();
+
+        const p0 = evt.touches[0];
+        const p1 = evt.touches[1];
+        const curDist = Math.hypot(p0.clientX - p1.clientX, p0.clientY - p1.clientY);
+        const curAngle = Math.atan2(p1.clientY - p0.clientY, p1.clientX - p0.clientX);
+
+        // 1. 크기 계산
+        const scaleRatio = curDist / Math.max(10, initDist);
+        const newW = Math.max(35, Math.min(450, Math.round(startW * scaleRatio)));
+        const newH = Math.round(newW / aspect);
+
+        // 2. 회전 각도 계산
+        let deltaDeg = (curAngle - initAngle) * (180 / Math.PI);
+        let normalized = ((Math.round(initialRot + deltaDeg) % 360) + 360) % 360;
+        if (normalized > 180) normalized -= 360;
+        if (Math.abs(normalized) < 5) normalized = 0;
+
+        data.width = newW;
+        data.height = newH;
+        data.rot = normalized;
+
+        el.style.width = `${newW}px`;
+        el.style.height = `${newH}px`;
+        el.style.transform = `rotate(${normalized}deg)`;
+      }
+
+      function onTwoFingerEnd() {
+        el.classList.remove('scaling');
+        isMagnetInteracting = false;
+        window.removeEventListener('touchmove', onTwoFingerMove);
+        window.removeEventListener('touchend', onTwoFingerEnd);
+        triggerSnap(el);
+        saveStorage();
+      }
+
+      window.addEventListener('touchmove', onTwoFingerMove, { passive: false });
+      window.addEventListener('touchend', onTwoFingerEnd);
+    }
+
+    let pressTimer = null;
+
+    function startDrag(e, el, data) {
+      if (e.target.closest('.transform-box')) return;
+      e.stopPropagation();
+      selectMagnet(el);
+
+      isMagnetInteracting = true;
+
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(() => {
+        el.classList.add('wiggling');
+        if (appData.soundEnabled && navigator.vibrate) navigator.vibrate(20);
+      }, 450);
+
+      el.classList.add('dragging');
+      const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+
+      const startLeft = data.x;
+      const startTop = data.y;
+      const startClientX = clientX;
+      const startClientY = clientY;
+
+      const curBoard = getCurrentBoard();
+      let attachedDecos = [];
+
+      if (!data.isDeco) {
+        const parentW = data.width || 100;
+        const parentH = data.height || 100;
+        attachedDecos = curBoard.magnets
+          .filter(m => m.isDeco && m.id !== data.id)
+          .filter(deco => {
+            const decoW = deco.width || 80;
+            const decoH = deco.height || 40;
+            const decoCenterX = deco.x + decoW / 2;
+            const decoCenterY = deco.y + decoH / 2;
+            return (
+              decoCenterX >= data.x &&
+              decoCenterX <= data.x + parentW &&
+              decoCenterY >= data.y &&
+              decoCenterY <= data.y + parentH
+            );
+          })
+          .map(deco => ({
+            data: deco,
+            el: document.getElementById(deco.id),
+            initX: deco.x,
+            initY: deco.y
+          }));
+      }
+
+      function onMove(evt) {
+        if (evt.type === 'touchmove') {
+          if (evt.touches.length >= 2) {
+            onEnd();
+            return;
+          }
+          evt.preventDefault();
+        }
+        clearTimeout(pressTimer);
+        el.classList.remove('wiggling');
+
+        const cx = evt.type === 'touchmove' ? evt.touches[0].clientX : evt.clientX;
+        const cy = evt.type === 'touchmove' ? evt.touches[0].clientY : evt.clientY;
+
+        const deltaWorldX = (cx - startClientX) / panState.scale;
+        const deltaWorldY = (cy - startClientY) / panState.scale;
+
+        let targetX = startLeft + deltaWorldX;
+        let targetY = startTop + deltaWorldY;
+
+        const snapThreshold = 8;
+        let snappedX = false;
+        let snappedY = false;
+        const w = data.width || 100;
+        const h = data.height || 100;
+
+        for (const other of curBoard.magnets) {
+          if (other.id === data.id) continue;
+          if (attachedDecos.some(d => d.data.id === other.id)) continue;
+
+          const otherW = other.width || 100;
+          const otherH = other.height || 100;
+
+          if (Math.abs(targetX - other.x) < snapThreshold) {
+            targetX = other.x;
+            showGuideY(other.x);
+            snappedX = true;
+          } else if (Math.abs((targetX + w / 2) - (other.x + otherW / 2)) < snapThreshold) {
+            targetX = other.x + (otherW - w) / 2;
+            showGuideY(other.x + otherW / 2);
+            snappedX = true;
+          }
+
+          if (Math.abs(targetY - other.y) < snapThreshold) {
+            targetY = other.y;
+            showGuideX(other.y);
+            snappedY = true;
+          } else if (Math.abs((targetY + h / 2) - (other.y + otherH / 2)) < snapThreshold) {
+            targetY = other.y + (otherH - h) / 2;
+            showGuideX(other.y + otherH / 2);
+            snappedY = true;
+          }
+        }
+
+        if (!snappedX) hideGuideY();
+        if (!snappedY) hideGuideX();
+
+        const actualDeltaX = Math.round(targetX) - startLeft;
+        const actualDeltaY = Math.round(targetY) - startTop;
+
+        data.x = Math.round(targetX);
+        data.y = Math.round(targetY);
+        el.style.left = `${data.x}px`;
+        el.style.top = `${data.y}px`;
+
+        attachedDecos.forEach(item => {
+          item.data.x = Math.round(item.initX + actualDeltaX);
+          item.data.y = Math.round(item.initY + actualDeltaY);
+          if (item.el) {
+            item.el.style.left = `${item.data.x}px`;
+            item.el.style.top = `${item.data.y}px`;
+          }
+        });
+      }
+
+      function onEnd() {
+        clearTimeout(pressTimer);
+        el.classList.remove('wiggling');
+        el.classList.remove('dragging');
+        hideGuides();
+
+        isMagnetInteracting = false;
+
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('touchmove', onMove);
+        window.removeEventListener('mouseup', onEnd);
+        window.removeEventListener('touchend', onEnd);
+
+        triggerSnap(el);
+        saveStorage();
+      }
+
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('mouseup', onEnd);
+      window.addEventListener('touchend', onEnd);
+    }
+
+    function startRotate(e, el, data) {
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      clearTimeout(pressTimer);
+      el.classList.remove('wiggling');
+
+      isMagnetInteracting = true;
+      el.classList.add('rotating');
+
+      const rect = el.getBoundingClientRect();
+      const screenCenterX = rect.left + rect.width / 2;
+      const screenCenterY = rect.top + rect.height / 2;
+
+      const isTouch = e.type === 'touchstart';
+      const touchId = isTouch ? e.touches[0].identifier : null;
+      const startClientX = isTouch ? e.touches[0].clientX : e.clientX;
+      const startClientY = isTouch ? e.touches[0].clientY : e.clientY;
+
+      let lastAngle = Math.atan2(startClientY - screenCenterY, startClientX - screenCenterX);
+      let currentRot = data.rot || 0;
+
+      function onRotateMove(evt) {
+        if (evt.cancelable) evt.preventDefault();
+
+        let cx, cy;
+        if (evt.type === 'touchmove') {
+          const touch = Array.from(evt.touches).find(t => t.identifier === touchId) || evt.touches[0];
+          if (!touch) return;
+          cx = touch.clientX;
+          cy = touch.clientY;
+        } else {
+          cx = evt.clientX;
+          cy = evt.clientY;
+        }
+
+        const currentAngle = Math.atan2(cy - screenCenterY, cx - screenCenterX);
+        let deltaAngle = currentAngle - lastAngle;
+
+        if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+        if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+
+        currentRot += deltaAngle * (180 / Math.PI);
+        lastAngle = currentAngle;
+
+        let normalized = ((currentRot % 360) + 360) % 360;
+        if (normalized > 180) normalized -= 360;
+
+        const snapThreshold = 5;
+        let finalDeg = normalized;
+        if (Math.abs(normalized) < snapThreshold) finalDeg = 0;
+        else if (Math.abs(normalized - 90) < snapThreshold) finalDeg = 90;
+        else if (Math.abs(normalized + 90) < snapThreshold) finalDeg = -90;
+        else if (Math.abs(Math.abs(normalized) - 180) < snapThreshold) finalDeg = 180;
+
+        data.rot = Math.round(finalDeg);
+        el.style.transform = `rotate(${data.rot}deg)`;
+      }
+
+      function onRotateEnd() {
+        el.classList.remove('rotating');
+        isMagnetInteracting = false;
+
+        window.removeEventListener('mousemove', onRotateMove);
+        window.removeEventListener('touchmove', onRotateMove);
+        window.removeEventListener('mouseup', onRotateEnd);
+        window.removeEventListener('touchend', onRotateEnd);
+
+        triggerSnap(el);
+        saveStorage();
+      }
+
+      window.addEventListener('mousemove', onRotateMove);
+      window.addEventListener('touchmove', onRotateMove, { passive: false });
+      window.addEventListener('mouseup', onRotateEnd);
+      window.addEventListener('touchend', onRotateEnd);
+    }
+
+    function startScale(e, el, data) {
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      clearTimeout(pressTimer);
+      el.classList.remove('wiggling');
+
+      isMagnetInteracting = true;
+      el.classList.add('scaling');
+
+      const startW = data.width || 100;
+      const aspect = data.aspect || (startW / (data.height || 100));
+      const startClientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+      const startClientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+
+      function onScaleMove(evt) {
+        if (evt.cancelable) evt.preventDefault();
+        const cx = evt.type === 'touchmove' ? evt.touches[0].clientX : evt.clientX;
+        const cy = evt.type === 'touchmove' ? evt.touches[0].clientY : evt.clientY;
+
+        const dx = (cx - startClientX) / panState.scale;
+        const dy = (cy - startClientY) / panState.scale;
+        const scaleDist = (dx + dy * aspect) / 2;
+
+        let newW = Math.max(35, Math.min(450, Math.round(startW + scaleDist)));
+        let newH = Math.round(newW / aspect);
+
+        data.width = newW;
+        data.height = newH;
+        el.style.width = `${newW}px`;
+        el.style.height = `${newH}px`;
+      }
+
+      function onScaleEnd() {
+        el.classList.remove('scaling');
+        isMagnetInteracting = false;
+
+        window.removeEventListener('mousemove', onScaleMove);
+        window.removeEventListener('touchmove', onScaleMove);
+        window.removeEventListener('mouseup', onScaleEnd);
+        window.removeEventListener('touchend', onScaleEnd);
+
+        triggerSnap(el);
+        saveStorage();
+      }
+
+      window.addEventListener('mousemove', onScaleMove);
+      window.addEventListener('touchmove', onScaleMove, { passive: false });
+      window.addEventListener('mouseup', onScaleEnd);
+      window.addEventListener('touchend', onScaleEnd);
+    }
+
+    function setupDirectEvents() {
+      window.addEventListener('paste', (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+          if (item.type.indexOf('image') !== -1) {
+            const blob = item.getAsFile();
+            const reader = new FileReader();
+            reader.onload = (evt) => openCreateModal(evt.target.result);
+            reader.readAsDataURL(blob);
+            break;
+          }
+        }
+      });
+
+      window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropOverlay.style.display = 'flex';
+      });
+      window.addEventListener('dragleave', (e) => {
+        if (e.relatedTarget === null) dropOverlay.style.display = 'none';
+      });
+      window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropOverlay.style.display = 'none';
+        const file = e.dataTransfer?.files[0];
+        if (file && file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (evt) => openCreateModal(evt.target.result);
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+    function showGuideX(worldY) {
+      snapGuideX.style.top = `${worldY}px`;
+      snapGuideX.style.display = 'block';
+    }
+    function hideGuideX() { snapGuideX.style.display = 'none'; }
+    function showGuideY(worldX) {
+      snapGuideY.style.left = `${worldX}px`;
+      snapGuideY.style.display = 'block';
+    }
+    function hideGuideY() { snapGuideY.style.display = 'none'; }
+    function hideGuides() { hideGuideX(); hideGuideY(); }
+
+    function triggerSnap(el) {
+      el.classList.remove('snapping');
+      void el.offsetWidth;
+      el.classList.add('snapping');
+      playMagnetSnapSound();
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
