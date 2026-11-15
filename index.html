@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>다이컷 마그넷 보드</title>
+  <title>MAGNET OOK - 다이컷 & 게임팩 마그넷 보드</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="MAGNET OOK">
@@ -11,66 +11,69 @@
   <link id="appleTouchIcon" rel="apple-touch-icon" sizes="512x512">
   <link id="faviconIcon" rel="icon" type="image/png" sizes="512x512">
   <link id="pwaManifest" rel="manifest">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
   <!-- Firebase Realtime Database Compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <style>
+    :root {
+      --board-bg: #e8e9ed;
+      --peg-dot: #c4c7d0;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body, html {
       width: 100%;
-      height: 100%;
+      height: 100dvh;
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       user-select: none;
       -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
       touch-action: none;
       background: #111;
+    }
+
+    .font-pixel {
+      font-family: 'Press Start 2P', monospace;
     }
 
     /* ========================================================
        1. 뷰포트 고정 무한 배경 & 가상 캔버스 레이어
        ======================================================== */
     #board-viewport {
+      flex: 1;
       width: 100vw;
-      height: 100vh;
       position: relative;
       overflow: hidden;
       cursor: default;
       touch-action: none;
+      box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.16);
       transition: background-color 0.3s ease;
     }
 
-    /* 1) 냉장고 메탈 (무한 반복) */
-    .bg-metal {
-      background-color: #c9cdd6;
-      background-image: 
-        radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.4) 0%, transparent 80%),
-        repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 4px),
-        linear-gradient(135deg, #d8dce4 0%, #b8bcc6 50%, #9fa5b1 100%);
-      background-size: 100% 100%, 8px 8px, 100% 100%;
+    /* 1) 게임팩 보드 기본 타공판 */
+    .bg-pegboard-light {
+      background-color: #e8e9ed;
+      background-image: radial-gradient(#c4c7d0 2px, transparent 2px);
+      background-size: 24px 24px;
     }
 
-    /* 2) 다크 타공판 (무한 반복) */
+    /* 2) 다크 타공판 */
     .bg-pegboard {
-      background-color: #1f2229;
-      background-image: 
-        radial-gradient(circle at 16px 15px, rgba(0,0,0,0.9) 3.5px, transparent 4px),
-        radial-gradient(circle at 16px 17px, rgba(255,255,255,0.18) 3.8px, transparent 4px);
-      background-size: 32px 32px, 32px 32px;
+      background-color: #23252b;
+      background-image: radial-gradient(#363942 2px, transparent 2px);
+      background-size: 24px 24px;
     }
 
-    /* 3) 빈티지 코르크 (무한 반복) */
-    .bg-cork {
-      background-color: #b37e42;
-      background-image: 
-        radial-gradient(rgba(60, 30, 10, 0.3) 15%, transparent 16%),
-        radial-gradient(rgba(255, 225, 170, 0.35) 15%, transparent 16%),
-        radial-gradient(rgba(40, 15, 0, 0.25) 20%, transparent 25%),
-        linear-gradient(45deg, rgba(80, 40, 10, 0.08) 25%, transparent 25%, transparent 75%, rgba(80, 40, 10, 0.08) 75%);
-      background-size: 20px 14px, 24px 26px, 14px 18px, 16px 16px;
+    /* 3) 크림 냉장고 도어 */
+    .bg-cream {
+      background-color: #f6f1e7;
+      background-image: radial-gradient(#e2d8c5 2px, transparent 2px);
+      background-size: 24px 24px;
     }
 
-    /* 가상 월드 레이어: 크기 제한 없는 무한 좌표 평면 */
+    /* 가상 월드 레이어 */
     #board-world {
       width: 0;
       height: 0;
@@ -83,110 +86,152 @@
     }
 
     /* ========================================================
-       2. 모바일 최적화 슬림 상단 네비게이션 (사진 공간 극대화)
+       2. 게임팩 보드 스타일 다크 헤더 & 필터 칩 바
        ======================================================== */
-    .top-bar {
-      position: absolute;
-      top: max(10px, env(safe-area-inset-top));
-      left: 10px;
-      right: 10px;
+    .retro-top-header {
+      background: #18181b;
+      color: #ffffff;
+      padding: calc(env(safe-area-inset-top, 10px) + 8px) 12px 10px 12px;
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: center;
-      pointer-events: none;
+      border-bottom: 2px solid #27272a;
       z-index: 500;
-      gap: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      gap: 6px;
     }
 
-    .top-left-group, .top-right-group {
+    .header-left {
       display: flex;
-      gap: 4px;
-      pointer-events: auto;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .header-title-row {
+      display: flex;
       align-items: center;
+      gap: 6px;
     }
 
-    .top-center-switcher {
-      pointer-events: auto;
-      display: flex;
+    .rec-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: pulseDot 1.5s infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    .board-switcher-pill {
+      display: inline-flex;
       align-items: center;
       gap: 3px;
-      background: rgba(255, 255, 255, 0.86);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      padding: 4px 7px;
-      border-radius: 20px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
-      max-width: 40vw;
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      border-radius: 8px;
+      padding: 2px 5px;
     }
 
     .board-nav-btn {
       border: none;
       background: transparent;
       cursor: pointer;
-      font-size: 11px;
-      padding: 4px;
-      border-radius: 50%;
-      color: #333;
+      font-size: 9px;
+      padding: 2px 4px;
+      color: #a1a1aa;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    .board-nav-btn:active { background: rgba(0,0,0,0.08); }
+    .board-nav-btn:active { color: #fff; }
 
     .board-name-display {
-      font-size: 12px;
-      font-weight: 700;
-      color: #111;
+      font-size: 11px;
+      font-weight: 800;
+      color: #f4f4f5;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 75px;
+      max-width: 78px;
       text-align: center;
       cursor: pointer;
-      padding: 2px 3px;
     }
 
-    .top-btn {
-      pointer-events: auto;
-      border: none;
-      background: rgba(255, 255, 255, 0.88);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      color: #1d1d1f;
-      padding: 7px 10px;
-      border-radius: 20px;
-      font-size: 12px;
+    .header-stats-text {
+      font-size: 10.5px;
+      color: #a1a1aa;
+      margin-top: 4px;
       font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      transition: transform 0.15s ease, background 0.2s;
-      min-height: 32px;
+      white-space: nowrap;
     }
-    .top-btn:active { transform: scale(0.95); }
-    .btn-add { background: #111; color: #fff; }
-    .btn-deco { background: #ffeaa7; color: #d35400; }
-    .btn-icon-only { padding: 7px 8px; }
 
-    /* 동기화 상태 표시 배지 */
-    .sync-badge {
-      pointer-events: auto;
-      background: rgba(255, 255, 255, 0.88);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      padding: 6px 8px;
-      border-radius: 20px;
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .retro-btn {
+      border: 1px solid #3f3f46;
+      background: #27272a;
+      color: #f4f4f5;
+      padding: 7px 9px;
+      border-radius: 10px;
       font-size: 11px;
-      font-weight: 700;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+      font-weight: 800;
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
+      gap: 3px;
+      transition: transform 0.12s ease, background 0.15s;
+      white-space: nowrap;
+    }
+    .retro-btn:active { transform: scale(0.95); }
+    .retro-btn-amber { background: #f59e0b; border-color: #d97706; color: #09090b; font-weight: 900; }
+    .retro-btn-rose { background: #e11d48; border-color: #be123c; color: #ffffff; }
+    .retro-btn-blue { background: #2563eb; border-color: #1d4ed8; color: #ffffff; }
+
+    /* 필터 칩 바 */
+    .filter-chip-bar {
+      background: rgba(24, 24, 27, 0.96);
+      padding: 7px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      border-bottom: 1px solid #27272a;
+      z-index: 490;
+      overflow-x: auto;
+    }
+    .filter-chip-bar::-webkit-scrollbar { display: none; }
+
+    .filter-chips-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .filter-btn {
+      border: none;
+      padding: 5px 9px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      background: #27272a;
+      color: #a1a1aa;
       cursor: pointer;
-      min-height: 32px;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .filter-btn.active {
+      background: #f4f4f5;
+      color: #18181b;
     }
 
     /* 스마트 정렬 가이드 라인 */
@@ -219,13 +264,13 @@
     }
 
     /* ========================================================
-       3. 마그넷 및 3D 플립 카드
+       3. 공통 마그넷 래퍼 & 3D 플립 카드
        ======================================================== */
     .magnet-wrapper {
       position: absolute;
       touch-action: none;
       perspective: 1000px;
-      will-change: transform;
+      will-change: transform, left, top;
       cursor: grab;
       transform-origin: center center;
     }
@@ -272,6 +317,11 @@
         drop-shadow(0 -2px 0 #ffffff)
         drop-shadow(0 8px 14px rgba(0, 0, 0, 0.35));
       transition: filter 0.15s ease, transform 0.15s ease;
+    }
+
+    /* 게임팩은 자체 실물 플라스틱 외곽선이 있으므로 흰 테두리 필터 제외 */
+    .magnet-wrapper.is-game .magnet-front {
+      filter: drop-shadow(4px 8px 14px rgba(0, 0, 0, 0.36));
     }
 
     .magnet-front img {
@@ -322,13 +372,7 @@
 
     /* 집어 올릴 때 (자석 떼어내기 틸트) */
     .magnet-wrapper.dragging .magnet-front {
-      transform: scale(1.04) rotateX(10deg) rotateY(-8deg);
-      filter: 
-        drop-shadow(2px 0 0 #ffffff)
-        drop-shadow(-2px 0 0 #ffffff)
-        drop-shadow(0 2px 0 #ffffff)
-        drop-shadow(0 -2px 0 #ffffff)
-        drop-shadow(8px 24px 30px rgba(0, 0, 0, 0.45));
+      transform: scale(1.05) rotateX(10deg) rotateY(-8deg);
     }
 
     /* 뒷면: 러버 자석 */
@@ -368,7 +412,7 @@
       color: #fffae6;
       word-break: keep-all;
       overflow-y: auto;
-      max-height: 70px;
+      max-height: 75px;
     }
 
     .back-date {
@@ -387,6 +431,261 @@
     }
 
     /* ========================================================
+       3-B. 실물 게임팩(카트리지) 하드웨어 렌더링
+       ======================================================== */
+    .cartridge-body {
+      width: 100%;
+      height: 100%;
+      border-radius: 6px 16px 5px 5px;
+      padding: 6px 7px 0 7px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      box-shadow: 
+        inset 0 2px 1px rgba(255, 255, 255, 0.55),
+        inset 2px 0 2px rgba(255, 255, 255, 0.25),
+        inset -2px -3px 4px rgba(0, 0, 0, 0.45),
+        0 2px 0 rgba(0, 0, 0, 0.4);
+    }
+
+    .cartridge-body.form-switch {
+      border-radius: 6px 6px 14px 6px;
+      background: linear-gradient(145deg, #323338, #1e1f23) !important;
+      border: 2px solid #121316 !important;
+      padding: 7px 6px 8px 6px;
+    }
+
+    .shell-gray { background: linear-gradient(150deg, #d1d4da 0%, #aeb2bc 55%, #8e929c 100%); border: 2px solid #6c707a; }
+    .shell-red { background: linear-gradient(150deg, #ef3340 0%, #c8102e 55%, #99081f 100%); border: 2px solid #6e0414; }
+    .shell-blue { background: linear-gradient(150deg, #2589bd 0%, #155c94 55%, #0c3b63 100%); border: 2px solid #072642; }
+    .shell-purple { background: linear-gradient(150deg, rgba(139, 92, 246, 0.9) 0%, rgba(91, 33, 182, 0.94) 60%, rgba(59, 7, 100, 0.98) 100%); border: 2px solid #3b0764; }
+    .shell-gold { background: linear-gradient(150deg, #fde047 0%, #eab308 45%, #a16207 100%); border: 2px solid #713f12; }
+
+    .cart-header {
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      padding: 0 2px;
+    }
+    .cart-side-ribs {
+      width: 14px;
+      height: 12px;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(0,0,0,0.28),
+        rgba(0,0,0,0.28) 1.5px,
+        rgba(255,255,255,0.2) 1.5px,
+        rgba(255,255,255,0.2) 3px
+      );
+      border-radius: 1px;
+    }
+    .cart-emboss-plate {
+      flex: 1;
+      height: 13px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.14);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 5px;
+      color: rgba(255, 255, 255, 0.72);
+      letter-spacing: 0.3px;
+      text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
+    }
+
+    .cart-label-recess {
+      flex: 1;
+      margin: 4px 3px 3px 3px;
+      padding: 2px;
+      border-radius: 5px;
+      background: rgba(0, 0, 0, 0.22);
+      box-shadow: inset 0 1.5px 3px rgba(0,0,0,0.45), 0 1px 0 rgba(255,255,255,0.28);
+      display: flex;
+    }
+
+    .cart-label {
+      flex: 1;
+      background: #ffffff;
+      border-radius: 3px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    .switch-top-band {
+      height: 12px;
+      background: #e60012;
+      color: #ffffff;
+      font-size: 6px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 4px;
+      letter-spacing: 0.3px;
+    }
+
+    .cart-art {
+      flex: 1;
+      width: 100%;
+      background-size: cover;
+      background-position: center;
+      background-color: #1f2937;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .cart-art::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 45%);
+      pointer-events: none;
+    }
+
+    .cart-title-strip {
+      background: linear-gradient(to right, #18181b, #27272a);
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 3px 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+      letter-spacing: -0.3px;
+      border-top: 1px solid rgba(255,255,255,0.15);
+    }
+
+    /* 클리어(CLEAR) 게임팩 홀로그램 코팅 */
+    .cartridge-body.is-clear .cart-label::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        125deg,
+        rgba(255, 255, 255, 0) 15%,
+        rgba(255, 215, 0, 0.38) 35%,
+        rgba(0, 255, 255, 0.38) 50%,
+        rgba(255, 105, 180, 0.38) 65%,
+        rgba(255, 255, 255, 0) 85%
+      );
+      background-size: 200% 200%;
+      animation: holoShimmer 3s infinite linear;
+      pointer-events: none;
+    }
+
+    @keyframes holoShimmer {
+      0% { background-position: 0% 0%; }
+      50% { background-position: 100% 100%; }
+      100% { background-position: 0% 0%; }
+    }
+
+    .cart-bottom-hardware {
+      height: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+    }
+    .cart-arrow {
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 5px solid rgba(0, 0, 0, 0.35);
+      margin-bottom: 2px;
+    }
+    .gold-pins-slot {
+      width: 78%;
+      height: 6px;
+      background: #14281d;
+      border-radius: 2px 2px 0 0;
+      padding: 1px 3px 0 3px;
+      display: flex;
+      gap: 2px;
+      box-shadow: inset 0 2px 2px rgba(0,0,0,0.8);
+    }
+    .gold-pins-slot span {
+      flex: 1;
+      height: 100%;
+      background: linear-gradient(to bottom, #facc15, #ca8a04);
+      border-radius: 1px 1px 0 0;
+    }
+    .form-switch .cart-bottom-hardware { height: 8px; }
+
+    .status-pill {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      font-size: 6.5px;
+      padding: 1.5px 4px;
+      border-radius: 3px;
+      font-weight: 900;
+      z-index: 2;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+    .status-CLEAR { background: #facc15; color: #422006; }
+    .status-PLAYING { background: #34d399; color: #064e3b; }
+    .status-BACKLOG { background: #f4f4f5; color: #18181b; }
+
+    .seal-100 {
+      position: absolute;
+      bottom: 20px;
+      left: 3px;
+      background: linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%);
+      color: #422006;
+      border: 1px solid #ffffff;
+      font-size: 6px;
+      font-weight: 900;
+      padding: 1.5px 4px;
+      border-radius: 3px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+      transform: rotate(-5deg);
+      z-index: 3;
+      letter-spacing: -0.3px;
+      pointer-events: none;
+    }
+
+    /* 7일 방치 먼지 레이어 */
+    .dust-overlay {
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(circle at 25% 30%, rgba(228, 228, 231, 0.65) 0%, transparent 55%),
+        radial-gradient(circle at 75% 70%, rgba(212, 212, 216, 0.68) 0%, transparent 60%),
+        repeating-linear-gradient(45deg, rgba(255,255,255,0.16) 0px, rgba(255,255,255,0.16) 2px, transparent 2px, transparent 5px);
+      backdrop-filter: grayscale(0.45) contrast(0.92);
+      border-radius: inherit;
+      z-index: 4;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .dust-tag {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%) rotate(-4deg);
+      background: rgba(39, 39, 42, 0.85);
+      color: #e4e4e7;
+      font-size: 7px;
+      font-weight: 800;
+      padding: 1.5px 5px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* ========================================================
        4. 트랜스폼 조절 핸들
        ======================================================== */
     .transform-box {
@@ -396,6 +695,7 @@
       border-radius: 12px;
       pointer-events: none;
       display: none;
+      z-index: 40;
     }
     .magnet-wrapper.selected .transform-box { display: block; }
 
@@ -447,38 +747,105 @@
       display: none !important;
     }
 
+    /* 게임팩 전용: 플립 대신 레트로 콘솔 삽입(상세보기) 아이콘 */
+    .magnet-wrapper.is-game .handle-flip {
+      background: #10b981;
+    }
+
     /* ========================================================
-       5. 아카이브 서랍 & 하단 컨트롤러 & 실행 취소 토스트
+       5. 하단 콘솔 슬롯 도크 & 액션 바
        ======================================================== */
-    .bottom-bar {
-      position: absolute;
-      bottom: max(12px, env(safe-area-inset-bottom));
-      left: 12px;
-      right: 12px;
+    .console-slot-dock {
+      background: #27272a;
+      border-top: 4px solid #18181b;
+      padding: 9px 14px calc(env(safe-area-inset-bottom, 10px) + 8px) 14px;
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
       align-items: center;
-      pointer-events: none;
+      gap: 8px;
       z-index: 500;
+      box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35);
+    }
+
+    .slot-mouth {
+      width: 100%;
+      max-width: 360px;
+      height: 26px;
+      background: #09090b;
+      border: 3px solid #3f3f46;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: inset 0 4px 8px rgba(0,0,0,0.9);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .slot-mouth.drag-over {
+      border-color: #34d399;
+      box-shadow: inset 0 0 12px rgba(52, 211, 153, 0.65), 0 0 14px rgba(52, 211, 153, 0.45);
+      transform: scale(1.03);
+    }
+
+    .slot-mouth span {
+      color: #71717a;
+      font-size: 8.5px;
+      letter-spacing: 0.5px;
+    }
+    .slot-mouth.drag-over span {
+      color: #34d399;
+    }
+
+    .dock-controls-row {
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .dock-btn {
+      border: 1px solid #3f3f46;
+      background: #18181b;
+      color: #e4e4e7;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .dock-btn:active { transform: scale(0.95); }
+    .dock-btn-emerald {
+      background: #059669;
+      border-color: #047857;
+      color: #ffffff;
     }
 
     .toast-bar {
       position: fixed;
-      bottom: max(56px, calc(env(safe-area-inset-bottom) + 48px));
+      top: 116px;
       left: 50%;
-      transform: translateX(-50%) translateY(20px);
-      background: rgba(24, 24, 27, 0.92);
+      transform: translateX(-50%) translateY(-10px);
+      background: rgba(24, 24, 27, 0.95);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       color: #fff;
       padding: 9px 16px;
       border-radius: 24px;
+      border: 1px solid #3f3f46;
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 700;
       display: flex;
       align-items: center;
       gap: 12px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.35);
       z-index: 1800;
       opacity: 0;
       pointer-events: none;
@@ -506,8 +873,8 @@
       bottom: 0;
       left: 0;
       right: 0;
-      height: 170px;
-      background: rgba(255, 255, 255, 0.94);
+      height: 175px;
+      background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       box-shadow: 0 -6px 25px rgba(0,0,0,0.18);
@@ -539,8 +906,8 @@
       flex: 1;
     }
     .drawer-item {
-      flex: 0 0 74px;
-      height: 84px;
+      flex: 0 0 76px;
+      height: 86px;
       background: #f1f2f6;
       border-radius: 10px;
       border: 1px solid #ddd;
@@ -552,16 +919,16 @@
       padding: 5px;
       text-align: center;
     }
-    .drawer-item img { max-width: 46px; max-height: 46px; object-fit: contain; }
-    .drawer-item span { font-size: 10px; color: #555; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+    .drawer-item img { max-width: 46px; max-height: 46px; object-fit: contain; border-radius: 4px; }
+    .drawer-item span { font-size: 10px; color: #444; font-weight: 600; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
 
     /* ========================================================
-       6. 커스텀 모달 UI
+       6. 커스텀 모달 UI (라이트 & 다크 레트로 콘솔 스크린)
        ======================================================== */
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.48);
+      background: rgba(0, 0, 0, 0.52);
       backdrop-filter: blur(5px);
       -webkit-backdrop-filter: blur(5px);
       display: none;
@@ -575,31 +942,34 @@
     .modal-card {
       background: #ffffff;
       width: 100%;
-      max-width: 350px;
+      max-width: 355px;
       border-radius: 20px;
       padding: 20px;
-      box-shadow: 0 20px 45px rgba(0,0,0,0.28);
-      max-height: 88vh;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.3);
+      max-height: 88dvh;
       overflow-y: auto;
+      color: #111;
     }
-    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 12px; color: #111; }
+    .modal-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; color: #111; display: flex; justify-content: space-between; align-items: center; }
 
-    .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-size: 12px; font-weight: 600; color: #666; margin-bottom: 5px; }
+    .form-group { margin-bottom: 11px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 700; color: #555; margin-bottom: 5px; }
     .form-group input[type="text"], .form-group textarea, .form-group select {
       width: 100%;
-      padding: 10px 12px;
+      padding: 9px 12px;
       border-radius: 10px;
       border: 1px solid #ddd;
       font-size: 13px;
       outline: none;
       font-family: inherit;
+      background: #fff;
+      color: #111;
     }
-    .form-group textarea { resize: none; height: 56px; }
+    .form-group textarea { resize: none; height: 54px; }
 
     .img-upload-box {
       width: 100%;
-      height: 110px;
+      height: 105px;
       border: 2px dashed #ddd;
       border-radius: 12px;
       display: flex;
@@ -611,16 +981,98 @@
       position: relative;
     }
     .img-upload-box img { max-width: 90%; max-height: 90%; object-fit: contain; display: none; }
-    .img-upload-box span { font-size: 12px; color: #888; }
+    .img-upload-box span { font-size: 12px; color: #888; font-weight: 600; }
 
     .options-row { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
     .checkbox-row { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #333; cursor: pointer; }
 
-    .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
-    .modal-actions button { flex: 1; padding: 11px; border-radius: 12px; border: none; font-weight: 600; font-size: 13px; cursor: pointer; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .modal-actions button { flex: 1; padding: 11px; border-radius: 12px; border: none; font-weight: 700; font-size: 13px; cursor: pointer; }
     .btn-cancel { background: #eee; color: #555; }
     .btn-confirm { background: #111; color: #fff; }
+    .btn-game-confirm { background: #e11d48; color: #fff; }
     .btn-danger { background: #ffe3e6; color: #e03131; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .form-opt-btn {
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 2px solid #e4e4e7;
+      background: #f4f4f5;
+      color: #52525b;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .form-opt-btn.active {
+      border-color: #e11d48;
+      background: #fff1f2;
+      color: #be123c;
+    }
+
+    .color-dots-row { display: flex; gap: 10px; align-items: center; }
+    .color-dot-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+    .color-dot-btn.active {
+      border-color: #111;
+      box-shadow: 0 0 0 2px #fff, 0 0 0 4px #e11d48;
+    }
+
+    /* 레트로 게임팩 상세 스크린 모달 */
+    .retro-detail-card {
+      background: #18181b;
+      border: 4px solid #3f3f46;
+      border-radius: 24px;
+      width: 100%;
+      max-width: 345px;
+      overflow: hidden;
+      box-shadow: 0 24px 50px rgba(0,0,0,0.65);
+      color: #fff;
+    }
+    .retro-header {
+      background: #27272a;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #3f3f46;
+    }
+    .retro-banner {
+      height: 155px;
+      width: 100%;
+      background-color: #27272a;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .retro-body { padding: 18px; }
+    .retro-review-box {
+      background: rgba(39, 39, 42, 0.85);
+      border: 1px solid #3f3f46;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 12px;
+      color: #e4e4e7;
+      line-height: 1.5;
+      min-height: 58px;
+      margin-bottom: 14px;
+    }
+    .retro-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .retro-actions button {
+      padding: 10px 6px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
 
     .setting-opt {
       display: flex;
@@ -633,12 +1085,9 @@
       cursor: pointer;
       font-size: 13px;
     }
-    .setting-opt.selected { border-color: #111; background: #f8f9fa; font-weight: 600; }
+    .setting-opt.selected { border-color: #111; background: #f8f9fa; font-weight: 700; }
 
-    .room-code-row {
-      display: flex;
-      gap: 6px;
-    }
+    .room-code-row { display: flex; gap: 6px; }
     .room-code-row input { flex: 1; }
     .room-code-row button {
       padding: 0 14px;
@@ -646,7 +1095,7 @@
       border: none;
       background: #0984e3;
       color: #fff;
-      font-weight: 600;
+      font-weight: 700;
       font-size: 12px;
       cursor: pointer;
     }
@@ -668,41 +1117,54 @@
       cursor: pointer;
       text-align: center;
     }
-    .backup-btn:active { background: #eee; }
   </style>
 </head>
-<body>
+<body style="display:flex; flex-direction:column; background:#18181b;">
 
   <div id="dropOverlay">보드 위에 사진을 놓아 마그넷 생성 📷</div>
 
-  <!-- 슬림 상단 네비게이션 -->
-  <div class="top-bar">
-    <div class="top-left-group">
-      <button class="top-btn btn-add" onclick="openCreateModal()">+ 마그넷</button>
-      <button class="top-btn btn-deco" onclick="openDecoModal()">🏷️ 소품</button>
-      <button class="top-btn btn-icon-only" onclick="alignAllSplitGrid()" title="유형별 분리 정렬">▦</button>
+  <!-- 1. 레트로 게임팩 보드 스타일 상단 헤더 -->
+  <header class="retro-top-header">
+    <div class="header-left">
+      <div class="header-title-row">
+        <span class="rec-dot"></span>
+        <div class="board-switcher-pill">
+          <button class="board-nav-btn" onclick="prevBoard()" title="이전 보드">◀</button>
+          <span class="board-name-display" id="boardNameDisplay" onclick="openBoardManageModal()" title="보드 이름 변경/삭제">내 보드 1</span>
+          <button class="board-nav-btn" onclick="nextBoard()" title="다음 보드">▶</button>
+          <button class="board-nav-btn" onclick="addNewBoard()" title="새 보드 추가" style="color:#38bdf8; font-weight:900;">+</button>
+        </div>
+      </div>
+      <p id="statsText" class="header-stats-text">총 0개 · 전당등록 0팩</p>
     </div>
 
-    <div class="top-center-switcher">
-      <button class="board-nav-btn" onclick="prevBoard()" title="이전 보드">◀</button>
-      <span class="board-name-display" id="boardNameDisplay" onclick="openBoardManageModal()" title="보드 관리 / 이름 변경">내 보드 1</span>
-      <button class="board-nav-btn" onclick="nextBoard()" title="다음 보드">▶</button>
-      <button class="board-nav-btn" onclick="addNewBoard()" title="새 보드 추가" style="font-weight:bold; color:#0984e3;">+</button>
+    <div class="header-actions">
+      <button class="retro-btn" id="syncBadge" onclick="openSettingsModal()" title="클라우드 동기화 및 설정">☁️</button>
+      <button class="retro-btn retro-btn-amber" onclick="openDecoModal()">+ 배지</button>
+      <button class="retro-btn retro-btn-blue" onclick="openCreateModal()">+ 추억/메달</button>
+      <button class="retro-btn retro-btn-rose" onclick="openGameModal()">+ 팩 제작</button>
     </div>
+  </header>
 
-    <div class="top-right-group">
-      <div class="sync-badge" id="syncBadge" onclick="openSettingsModal()" title="클라우드 실시간 동기화 상태">☁️</div>
-      <button class="top-btn btn-icon-only" onclick="openSettingsModal()" title="설정 및 동기화">⚙️</button>
+  <!-- 2. 상태 필터 칩 바 -->
+  <div class="filter-chip-bar">
+    <div class="filter-chips-group" id="filterGroup">
+      <button data-filter="ALL" class="filter-btn active" onclick="setBoardFilter('ALL', this)">전체</button>
+      <button data-filter="CLEAR" class="filter-btn" onclick="setBoardFilter('CLEAR', this)">★ 클리어</button>
+      <button data-filter="PLAYING" class="filter-btn" onclick="setBoardFilter('PLAYING', this)">플레이중</button>
+      <button data-filter="BACKLOG" class="filter-btn" onclick="setBoardFilter('BACKLOG', this)">쌓인게임</button>
+      <button data-filter="PHOTO" class="filter-btn" onclick="setBoardFilter('PHOTO', this)">🏅 추억·메달</button>
     </div>
+    <button class="retro-btn" style="padding: 4px 8px; font-size: 10.5px;" onclick="alignAllSplitGrid()">정렬하기</button>
   </div>
 
-  <!-- 무한 뷰포트 & 가상 월드 좌표계 -->
-  <div id="board-viewport" class="bg-metal" onclick="deselectAll(event)">
+  <!-- 3. 무한 뷰포트 & 가상 월드 좌표계 -->
+  <main id="board-viewport" class="bg-pegboard-light" onclick="deselectAll(event)">
     <div id="board-world">
       <div id="snapGuideX" class="snap-guide snap-guide-x"></div>
       <div id="snapGuideY" class="snap-guide snap-guide-y"></div>
     </div>
-  </div>
+  </main>
 
   <!-- 실행 취소 & 시스템 알림 토스트 -->
   <div class="toast-bar" id="toastBar">
@@ -710,28 +1172,37 @@
     <button class="toast-undo-btn" id="toastUndoBtn" style="display:none;" onclick="undoLastDelete()">되돌리기</button>
   </div>
 
-  <!-- 하단 슬림 툴바 -->
-  <div class="bottom-bar">
-    <button class="top-btn" onclick="resetZoomPan()">🔍 100%</button>
-    <button class="top-btn btn-add" onclick="toggleDrawer()">🗄️ 서랍</button>
-  </div>
+  <!-- 4. 하단 게임기 콘솔 슬롯 & 액션 독 -->
+  <footer class="console-slot-dock">
+    <div id="consoleSlot" class="slot-mouth" onclick="openActiveGameDetail()">
+      <span class="font-pixel">▼ INSERT CARTRIDGE HERE ▼</span>
+    </div>
+
+    <div class="dock-controls-row">
+      <div style="display:flex; gap:5px;">
+        <button class="dock-btn" onclick="resetZoomPan()">🔍 100%</button>
+        <button class="dock-btn" onclick="toggleDrawer()">🗄️ 서랍</button>
+      </div>
+      <button class="dock-btn dock-btn-emerald" onclick="pickRandomGamePack()">🎲 랜덤 팩 뽑기</button>
+    </div>
+  </footer>
 
   <!-- 아카이브 서랍 패널 -->
   <div class="drawer-panel" id="archiveDrawer">
     <div class="drawer-header">
-      <div class="drawer-title">보관된 마그넷 서랍</div>
+      <div class="drawer-title">보관된 마그넷 & 게임팩 서랍</div>
       <button class="drawer-close" onclick="toggleDrawer()">✕</button>
     </div>
     <div class="drawer-list" id="drawerList"></div>
   </div>
 
-  <!-- [모달 1] 마그넷 제작 모달 -->
+  <!-- [모달 1] 사물/사진 마그넷 제작 모달 -->
   <div class="modal-overlay" id="createModal">
     <div class="modal-card">
-      <div class="modal-title">사물 마그넷 추가</div>
+      <div class="modal-title">추억 · 메달 마그넷 추가</div>
 
       <div class="form-group">
-        <label>사진 첨부 (추억, 메달, 굿즈, 책표지 등)</label>
+        <label>사진 첨부 (메달, 추억 사진, 티켓, 책표지 등)</label>
         <div class="img-upload-box" onclick="document.getElementById('magnetImgInput').click()">
           <span id="uploadPlaceholder">📷 탭하여 사진 첨부</span>
           <img id="previewImg" alt="미리보기" />
@@ -772,13 +1243,129 @@
     </div>
   </div>
 
+  <!-- [모달 1-B] 실물 게임팩(카트리지) 제작/수정 모달 -->
+  <div class="modal-overlay" id="gameModal">
+    <div class="modal-card">
+      <div class="modal-title" id="gameModalTitle">🕹️ 실물 게임팩 마그넷 제작</div>
+
+      <div class="form-group">
+        <label>게임 타이틀 *</label>
+        <input type="text" id="gameInputTitle" placeholder="예: 젤다의 전설 티어스 오브 더 킹덤" />
+      </div>
+
+      <div class="grid-2 form-group">
+        <div>
+          <label>플랫폼</label>
+          <select id="gameInputPlatform">
+            <option value="Switch">Switch</option>
+            <option value="Switch 2">Switch 2</option>
+            <option value="PC / Steam">PC / Steam</option>
+            <option value="PS5">PS5</option>
+            <option value="GBA / NDS">GBA / NDS</option>
+          </select>
+        </div>
+        <div>
+          <label>진행 상태</label>
+          <select id="gameInputStatus">
+            <option value="BACKLOG">쌓인 게임 (예정)</option>
+            <option value="PLAYING">플레이 중</option>
+            <option value="CLEAR">★ 클리어 (홀로그램)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-row" style="color: #b45309; background: #fef3c7; padding: 8px 10px; border-radius: 10px;">
+          <input type="checkbox" id="gameInputIs100" />
+          💯 100% 달성 실물 홀로그램 인증 스티커 부착
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label>카트리지 규격 (폼팩터)</label>
+        <div class="grid-2">
+          <button type="button" id="formOptClassic" class="form-opt-btn active" onclick="selectGameForm('classic')">👾 클래식 게임팩</button>
+          <button type="button" id="formOptSwitch" class="form-opt-btn" onclick="selectGameForm('switch')">🕹️ 스위치 실물 칩</button>
+        </div>
+      </div>
+
+      <div class="form-group" id="gameColorSection">
+        <label>카트리지 본체 컬러</label>
+        <div class="color-dots-row">
+          <button type="button" data-color="shell-gray" class="color-dot-btn active" style="background:#9ca3af;" onclick="selectGameColor('shell-gray')"></button>
+          <button type="button" data-color="shell-red" class="color-dot-btn" style="background:#dc2626;" onclick="selectGameColor('shell-red')"></button>
+          <button type="button" data-color="shell-blue" class="color-dot-btn" style="background:#2563eb;" onclick="selectGameColor('shell-blue')"></button>
+          <button type="button" data-color="shell-purple" class="color-dot-btn" style="background:#7c3aed;" onclick="selectGameColor('shell-purple')"></button>
+          <button type="button" data-color="shell-gold" class="color-dot-btn" style="background:#eab308;" onclick="selectGameColor('shell-gold')"></button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>패키지 커버 이미지 (선택)</label>
+        <div class="img-upload-box" style="height: 80px;" onclick="document.getElementById('gameImgInput').click()">
+          <span id="gameUploadPlaceholder">📷 커버 이미지 선택 (미선택 시 기본 아트워크)</span>
+          <img id="gamePreviewImg" alt="게임 커버" />
+        </div>
+        <input type="file" id="gameImgInput" accept="image/*" style="display:none;" onchange="handleGameImageUpload(event)" />
+      </div>
+
+      <div class="form-group">
+        <label>플레이 타임</label>
+        <input type="text" id="gameInputTime" placeholder="예: 65시간 / 미플레이" />
+      </div>
+
+      <div class="form-group">
+        <label>한줄평 & 공략 메모</label>
+        <textarea id="gameInputReview" placeholder="엔딩 소감이나 메모를 남겨보세요."></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('gameModal')">취소</button>
+        <button class="btn-game-confirm" id="saveGameBtn" onclick="submitCreateGame()">게임팩 부착하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- [모달 1-C] 게임팩 슬롯 삽입(상세 보기) 레트로 스크린 모달 -->
+  <div class="modal-overlay" id="gameDetailModal">
+    <div class="retro-detail-card">
+      <div class="retro-header">
+        <span class="font-pixel" style="font-size: 9px; color: #34d399;">● CARTRIDGE LOADED</span>
+        <button onclick="closeModal('gameDetailModal')" style="background:none; border:none; color:#a1a1aa; font-weight:800; font-size:12px; cursor:pointer;">EJECT ⏏</button>
+      </div>
+      <div id="gameDetailBanner" class="retro-banner">
+        <span id="gameDetailEmoji" style="font-size: 46px;">🎮</span>
+        <span id="gameDetailBadge" class="status-pill status-CLEAR" style="top:12px; right:12px; font-size:10px; padding:4px 8px;">CLEAR</span>
+      </div>
+      <div class="retro-body">
+        <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:#a1a1aa; font-weight:700; margin-bottom:4px;">
+          <span id="gameDetailPlatform" style="background:#27272a; color:#e4e4e7; padding:2px 6px; border-radius:4px;">Switch</span>
+          <span>·</span>
+          <span id="gameDetailTime">65시간</span>
+        </div>
+        <div id="gameDetailTitle" style="font-size:17px; font-weight:900; margin-bottom:10px;">게임 타이틀</div>
+        <div id="gameDetailReview" class="retro-review-box">한줄평 내용</div>
+        <div class="retro-actions">
+          <button onclick="cycleActiveGameStatus()" style="background:rgba(245,158,11,0.2); color:#fcd34d; border:1px solid rgba(245,158,11,0.4);">상태 변경</button>
+          <button onclick="editActiveGame()" style="background:#27272a; color:#e4e4e7; border:1px solid #3f3f46;">정보 수정</button>
+          <button onclick="deleteActiveGame()" style="background:rgba(136,19,55,0.5); color:#fda4af; border:1px solid rgba(159,18,57,0.6);">팩 제거</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- [모달 2] 소품 추가 모달 -->
   <div class="modal-overlay" id="decoModal">
     <div class="modal-card">
-      <div class="modal-title">소품 추가</div>
+      <div class="modal-title">소품 & 게임 배지 추가</div>
       <div class="form-group">
         <label>소품 종류 선택</label>
         <select id="decoSelect" onchange="handleDecoTypeChange()">
+          <option value="badge_goty">🏆 GOTY 배지</option>
+          <option value="badge_godgame">🔥 인생 갓겜 배지</option>
+          <option value="badge_tears">😭 눈물 주의 배지</option>
+          <option value="badge_unseal">💤 봉인 해제 배지</option>
+          <option value="badge_first">⚡ 초회판 배지</option>
           <option value="tape_yellow">노랑 마스킹 테이프 🎗️</option>
           <option value="tape_mint">민트 마스킹 테이프 🌿</option>
           <option value="tape_pink">핑크 체크 테이프 🎀</option>
@@ -825,7 +1412,7 @@
     </div>
   </div>
 
-  <!-- [모달 4] 보드 관리 모달 (커스텀 이름 변경 & 보드 삭제) -->
+  <!-- [모달 4] 보드 관리 모달 -->
   <div class="modal-overlay" id="boardManageModal">
     <div class="modal-card">
       <div class="modal-title">현재 보드 관리</div>
@@ -856,15 +1443,23 @@
       </div>
 
       <div class="form-group">
+        <label>Realtime Database 주소 (필요 시 변경)</label>
+        <div class="room-code-row">
+          <input type="text" id="dbUrlInput" placeholder="https://ookgnet-a9009-default-rtdb.firebaseio.com" />
+          <button onclick="updateDatabaseUrl()">적용</button>
+        </div>
+      </div>
+
+      <div class="form-group">
         <label>보드 배경 질감</label>
-        <div class="setting-opt" id="opt-metal" onclick="selectBg('bg-metal')">
-          <span>❄️ 냉장고 스테인리스</span>
+        <div class="setting-opt" id="opt-pegboard-light" onclick="selectBg('bg-pegboard-light')">
+          <span>🎛️ 실버 메탈 타공판 (기본)</span>
         </div>
         <div class="setting-opt" id="opt-pegboard" onclick="selectBg('bg-pegboard')">
-          <span>🔩 다크 철제 타공판</span>
+          <span>🔩 다크 메탈릭 타공판</span>
         </div>
-        <div class="setting-opt" id="opt-cork" onclick="selectBg('bg-cork')">
-          <span>🪵 빈티지 코르크</span>
+        <div class="setting-opt" id="opt-cream" onclick="selectBg('bg-cream')">
+          <span>🍦 크림 냉장고 도어</span>
         </div>
       </div>
 
@@ -872,7 +1467,7 @@
         <label>사운드 및 피드백</label>
         <label class="checkbox-row" style="margin-top: 6px;">
           <input type="checkbox" id="settingSoundToggle" checked onchange="toggleSoundSetting()" />
-          🔊 자석 흡착 효과음 & 햅틱 진동
+          🔊 자석 흡착 · 카트리지 슬롯 효과음
         </label>
       </div>
 
@@ -894,222 +1489,234 @@
 
   <script>
     // ========================================================
-    // 0. Firebase 설정 (ookgnet 프로젝트 실시간 DB 연동)
+    // Firebase 프로젝트 설정 (ookgnet-a9009)
     // ========================================================
+    const DB_URL_KEY = 'MAGNET_BOARD_DB_URL';
+    const DEFAULT_DB_URL = "https://ookgnet-a9009-default-rtdb.firebaseio.com";
+    let customDbUrl = localStorage.getItem(DB_URL_KEY) || DEFAULT_DB_URL;
+
     const firebaseConfig = {
-      apiKey: "AIzaSyBpnqL9Yof4sXe7MZWbIa0bpmDJUlWWljg",
-      authDomain: "ookgnet.firebaseapp.com",
-      databaseURL: "https://ookgnet-default-rtdb.firebaseio.com",
-      projectId: "ookgnet",
-      storageBucket: "ookgnet.firebasestorage.app",
-      messagingSenderId: "703157586667",
-      appId: "1:703157586667:web:ab8474a17b47e9c1558cae"
+      apiKey: "AIzaSyDGu3-T6EIWkyf80T-iQm29bWRoeZdEQgA",
+      authDomain: "ookgnet-a9009.firebaseapp.com",
+      databaseURL: customDbUrl,
+      projectId: "ookgnet-a9009",
+      storageBucket: "ookgnet-a9009.firebasestorage.app",
+      messagingSenderId: "493415142368",
+      appId: "1:493415142368:web:fe79fd4f16955318a11185"
     };
 
-    const STORAGE_KEY = 'MAGNET_BOARD_MASTER_V10';
+    const STORAGE_KEY = 'MAGNET_BOARD_UNIFIED_V1';
     const ROOM_KEY = 'MAGNET_BOARD_SYNC_ROOM';
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
     const DEVICE_ID = 'dev_' + Math.random().toString(36).slice(2, 10);
 
     // ========================================================
-    // 모바일 홈 화면 아이콘 & PWA 매니페스트 자동 생성기
-    // (다크 타공판 + 황금 월계관 메달 + MAGNET / OOK 명판)
+    // 모바일 홈 화면 아이콘 & 기본 대표 마그넷 이미지 생성기
     // ========================================================
+    let generatedBadgeIconUrl = '';
+
+    function buildBadgeIconDataUrl() {
+      if (generatedBadgeIconUrl) return generatedBadgeIconUrl;
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, 112);
+      ctx.clip();
+
+      const bgGrad = ctx.createLinearGradient(0, 0, size, size);
+      bgGrad.addColorStop(0, '#2c303a');
+      bgGrad.addColorStop(0.5, '#1f2229');
+      bgGrad.addColorStop(1, '#14161b');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, size, size);
+
+      const spacing = 44;
+      for (let x = 28; x < size; x += spacing) {
+        for (let y = 28; y < size; y += spacing) {
+          ctx.beginPath();
+          ctx.arc(x, y + 2, 5.5, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(x, y, 5.2, 0, Math.PI * 2);
+          ctx.fillStyle = '#090a0d';
+          ctx.fill();
+        }
+      }
+
+      ctx.save();
+      ctx.translate(248, 252);
+      ctx.rotate(-7 * Math.PI / 180);
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+      ctx.shadowBlur = 24;
+      ctx.shadowOffsetY = 12;
+      ctx.fillStyle = '#f8f9fa';
+      ctx.beginPath();
+      ctx.roundRect(-78, -168, 156, 86, 20);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, -10, 114, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.roundRect(-118, 72, 236, 72, 22);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(-58, -152);
+      ctx.lineTo(58, -152);
+      ctx.lineTo(42, -92);
+      ctx.lineTo(-42, -92);
+      ctx.closePath();
+      ctx.clip();
+
+      const ribbonColors = ['#3498db', '#2ecc71', '#f1c40f', '#e74c3c'];
+      const stripeW = 120 / 4;
+      ribbonColors.forEach((col, i) => {
+        ctx.fillStyle = col;
+        ctx.fillRect(-60 + i * stripeW, -155, stripeW + 1, 70);
+      });
+      ctx.restore();
+
+      ctx.fillStyle = '#f39c12';
+      ctx.beginPath();
+      ctx.roundRect(-34, -98, 68, 20, 8);
+      ctx.fill();
+
+      const goldGrad = ctx.createLinearGradient(-90, -100, 90, 80);
+      goldGrad.addColorStop(0, '#ffeaa7');
+      goldGrad.addColorStop(0.45, '#f1c40f');
+      goldGrad.addColorStop(1, '#d35400');
+      ctx.fillStyle = goldGrad;
+      ctx.beginPath();
+      ctx.arc(0, -10, 96, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(180, 90, 0, 0.45)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, -10, 80, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#d35400';
+      for (let side of [-1, 1]) {
+        for (let a = -0.7; a <= 0.85; a += 0.31) {
+          ctx.save();
+          ctx.translate(side * Math.cos(a) * 58, -10 + Math.sin(a) * 58);
+          ctx.rotate(side * (a + 0.6));
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 11, 5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      ctx.save();
+      ctx.translate(0, -12);
+      ctx.fillStyle = '#fff3b0';
+      ctx.strokeStyle = '#b86b00';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const r = i % 2 === 0 ? 34 : 15;
+        const angle = (i * Math.PI) / 5 - Math.PI / 2;
+        const sx = Math.cos(angle) * r;
+        const sy = Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = '#1e2024';
+      ctx.strokeStyle = '#3a3e47';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(-102, 84, 204, 48, 14);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#e9ecef';
+      ctx.font = '800 28px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('MAGNET', 0, 109);
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(392, 412);
+      ctx.rotate(-4 * Math.PI / 180);
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetY = 6;
+      ctx.fillStyle = '#1b1d21';
+      ctx.strokeStyle = '#3c4049';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.roundRect(-48, -22, 96, 44, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.shadowColor = 'transparent';
+      ctx.fillStyle = '#dee2e6';
+      ctx.font = '800 22px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('OOK', 0, 1);
+      ctx.restore();
+      ctx.restore();
+
+      generatedBadgeIconUrl = canvas.toDataURL('image/png');
+      return generatedBadgeIconUrl;
+    }
+
+    function makePackageArt(bg1, bg2, emoji, subText) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240">
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="${bg1}"/>
+            <stop offset="100%" stop-color="${bg2}"/>
+          </linearGradient>
+          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect width="240" height="240" fill="url(#g)"/>
+        <rect width="240" height="240" fill="url(#grid)"/>
+        <circle cx="120" cy="108" r="64" fill="rgba(255,255,255,0.14)"/>
+        <text x="50%" y="48%" dominant-baseline="middle" text-anchor="middle" font-size="78">${emoji}</text>
+        <text x="50%" y="84%" dominant-baseline="middle" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="16" fill="rgba(255,255,255,0.85)" letter-spacing="2">${subText}</text>
+      </svg>`;
+      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    }
+
     function setupAppIconsAndManifest() {
       try {
-        const size = 512;
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-
-        // 1. 다크 타공판 배경
-        const bgGrad = ctx.createLinearGradient(0, 0, size, size);
-        bgGrad.addColorStop(0, '#2c303a');
-        bgGrad.addColorStop(0.5, '#1f2229');
-        bgGrad.addColorStop(1, '#14161b');
-        ctx.fillStyle = bgGrad;
-        ctx.fillRect(0, 0, size, size);
-
-        // 2. 타공판 3D 구멍 패턴
-        const spacing = 44;
-        for (let x = 28; x < size; x += spacing) {
-          for (let y = 28; y < size; y += spacing) {
-            ctx.beginPath();
-            ctx.arc(x, y + 2, 5.5, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.arc(x, y, 5.2, 0, Math.PI * 2);
-            ctx.fillStyle = '#090a0d';
-            ctx.fill();
-          }
-        }
-
-        // 3. 중앙 황금 월계관 메달 & MAGNET 명판 (살짝 기울어진 다이컷 마그넷)
-        ctx.save();
-        ctx.translate(248, 252);
-        ctx.rotate(-7 * Math.PI / 180);
-
-        // 화이트 다이컷 테두리 + 그림자
-        ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
-        ctx.shadowBlur = 24;
-        ctx.shadowOffsetY = 12;
-        ctx.fillStyle = '#f8f9fa';
-
-        // 리본 다이컷 외곽
-        ctx.beginPath();
-        ctx.roundRect(-78, -168, 156, 86, 20);
-        ctx.fill();
-
-        // 메달 원형 다이컷 외곽
-        ctx.beginPath();
-        ctx.arc(0, -10, 114, 0, Math.PI * 2);
-        ctx.fill();
-
-        // MAGNET 명판 다이컷 외곽
-        ctx.beginPath();
-        ctx.roundRect(-118, 72, 236, 72, 22);
-        ctx.fill();
-        ctx.restore();
-
-        // 컬러 스트라이프 리본 (블루, 그린, 옐로우, 레드)
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(-58, -152);
-        ctx.lineTo(58, -152);
-        ctx.lineTo(42, -92);
-        ctx.lineTo(-42, -92);
-        ctx.closePath();
-        ctx.clip();
-
-        const ribbonColors = ['#3498db', '#2ecc71', '#f1c40f', '#e74c3c'];
-        const stripeW = 120 / 4;
-        ribbonColors.forEach((col, i) => {
-          ctx.fillStyle = col;
-          ctx.fillRect(-60 + i * stripeW, -155, stripeW + 1, 70);
-        });
-        ctx.restore();
-
-        // 메달 고리
-        ctx.fillStyle = '#f39c12';
-        ctx.beginPath();
-        ctx.roundRect(-34, -98, 68, 20, 8);
-        ctx.fill();
-
-        // 황금 메달 본체
-        const goldGrad = ctx.createLinearGradient(-90, -100, 90, 80);
-        goldGrad.addColorStop(0, '#ffeaa7');
-        goldGrad.addColorStop(0.45, '#f1c40f');
-        goldGrad.addColorStop(1, '#d35400');
-        ctx.fillStyle = goldGrad;
-        ctx.beginPath();
-        ctx.arc(0, -10, 96, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 메달 내부 음각 링
-        ctx.strokeStyle = 'rgba(180, 90, 0, 0.45)';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(0, -10, 80, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // 메달 내부 월계수 잎 문양 (좌/우)
-        ctx.fillStyle = '#d35400';
-        for (let side of [-1, 1]) {
-          for (let a = -0.7; a <= 0.85; a += 0.31) {
-            ctx.save();
-            ctx.translate(side * Math.cos(a) * 58, -10 + Math.sin(a) * 58);
-            ctx.rotate(side * (a + 0.6));
-            ctx.beginPath();
-            ctx.ellipse(0, 0, 11, 5, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-          }
-        }
-
-        // 중앙 황금 입체 별 문양
-        ctx.save();
-        ctx.translate(0, -12);
-        ctx.fillStyle = '#fff3b0';
-        ctx.strokeStyle = '#b86b00';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        for (let i = 0; i < 10; i++) {
-          const r = i % 2 === 0 ? 34 : 15;
-          const angle = (i * Math.PI) / 5 - Math.PI / 2;
-          const sx = Math.cos(angle) * r;
-          const sy = Math.sin(angle) * r;
-          if (i === 0) ctx.moveTo(sx, sy);
-          else ctx.lineTo(sx, sy);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
-
-        // 하단 블랙 양각 명판 (MAGNET)
-        ctx.fillStyle = '#1e2024';
-        ctx.strokeStyle = '#3a3e47';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.roundRect(-102, 84, 204, 48, 14);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#e9ecef';
-        ctx.font = '800 28px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('MAGNET', 0, 109);
-        ctx.restore();
-
-        // 4. 우측 하단 작은 'OOK' 블랙 양각 라벨 스티커
-        ctx.save();
-        ctx.translate(392, 412);
-        ctx.rotate(-4 * Math.PI / 180);
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-        ctx.shadowBlur = 12;
-        ctx.shadowOffsetY = 6;
-        ctx.fillStyle = '#1b1d21';
-        ctx.strokeStyle = '#3c4049';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.roundRect(-48, -22, 96, 44, 12);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.shadowColor = 'transparent';
-        ctx.fillStyle = '#dee2e6';
-        ctx.font = '800 22px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('OOK', 0, 1);
-        ctx.restore();
-
-        // 5. Data URL 생성 후 Apple Touch Icon, Favicon, PWA Manifest 연결
-        const iconDataUrl = canvas.toDataURL('image/png');
+        const iconDataUrl = buildBadgeIconDataUrl();
         const appleIcon = document.getElementById('appleTouchIcon');
         const favIcon = document.getElementById('faviconIcon');
         if (appleIcon) appleIcon.href = iconDataUrl;
         if (favIcon) favIcon.href = iconDataUrl;
 
         const manifestObj = {
-          name: '다이컷 마그넷 보드',
+          name: 'MAGNET OOK - 다이컷 & 게임팩 보드',
           short_name: 'MAGNET OOK',
           start_url: '.',
           display: 'standalone',
           background_color: '#1f2229',
           theme_color: '#1f2229',
-          icons: [
-            {
-              src: iconDataUrl,
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any maskable'
-            }
-          ]
+          icons: [{ src: iconDataUrl, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }]
         };
         const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
         const manifestLink = document.getElementById('pwaManifest');
@@ -1131,24 +1738,33 @@
     const snapGuideX = document.getElementById('snapGuideX');
     const snapGuideY = document.getElementById('snapGuideY');
     const dropOverlay = document.getElementById('dropOverlay');
+    const consoleSlot = document.getElementById('consoleSlot');
 
     let appData = {
-      version: '10.0',
+      version: '12.0',
       userId: 'ookgnet_user',
       activeBoardIndex: 0,
-      bg: 'bg-metal',
+      bg: 'bg-pegboard-light',
       soundEnabled: true,
       boards: [
-        { id: 'b1', name: '내 보드 1', magnets: [] },
-        { id: 'b2', name: '여행 & 추억', magnets: [] }
+        { id: 'b1', name: '내 게임 & 보드', magnets: [] },
+        { id: 'b2', name: '추억 아카이브', magnets: [] }
       ]
     };
 
+    let currentFilter = 'ALL';
     let selectedMagnetId = null;
     let editingMagnetId = null;
+    let editingGameId = null;
+    let activeGameDetailId = null;
+
     let rawImageData = '';
     let processedImageData = '';
     let imageAspectRatio = 1.0;
+
+    let selectedGameForm = 'classic';
+    let selectedGameColor = 'shell-gray';
+    let uploadedGameImage = '';
 
     let isMagnetInteracting = false;
     let lastDeletedRecord = null;
@@ -1173,6 +1789,7 @@
       const badge = document.getElementById('syncBadge');
       const statusText = document.getElementById('syncStatusText');
       try {
+        firebaseConfig.databaseURL = customDbUrl;
         if (!firebase.apps.length) {
           firebase.initializeApp(firebaseConfig);
         }
@@ -1184,7 +1801,7 @@
             if (statusText) statusText.innerText = `🟢 실시간 클라우드 연결됨 (방: ${syncRoomCode})`;
           } else {
             badge.innerText = '🟡';
-            if (statusText) statusText.innerText = '🟡 오프라인 모드 (연결 대기 중)';
+            if (statusText) statusText.innerText = '🟡 연결 대기 중 (콘솔 DB 생성 및 주소 확인)';
           }
         });
 
@@ -1192,8 +1809,20 @@
       } catch (err) {
         console.error('Firebase init error:', err);
         badge.innerText = '🔴';
-        if (statusText) statusText.innerText = '🔴 Firebase 연결 오류 (콘솔 DB URL 확인 필요)';
+        if (statusText) statusText.innerText = '🔴 Firebase 연결 오류 (설정에서 DB 주소를 확인해 주세요)';
       }
+    }
+
+    function updateDatabaseUrl() {
+      const input = document.getElementById('dbUrlInput');
+      const val = input.value.trim().replace(/\/$/, '');
+      if (!val || !val.startsWith('https://')) {
+        showToast('https:// 로 시작하는 올바른 Realtime Database 주소를 입력해 주세요.');
+        return;
+      }
+      localStorage.setItem(DB_URL_KEY, val);
+      showToast('DB 주소를 저장했습니다. 페이지를 새로고침합니다.');
+      setTimeout(() => location.reload(), 700);
     }
 
     function connectToRoom(roomCode) {
@@ -1209,12 +1838,9 @@
       currentRoomRef.on('value', (snapshot) => {
         const remoteVal = snapshot.val();
         if (!remoteVal) {
-          // 클라우드에 데이터가 없으면 현재 로컬 데이터 업로드
           pushToFirebase(true);
           return;
         }
-
-        // 본인이 방금 올린 업데이트는 무시하여 화면 깜빡임 방지
         if (remoteVal.lastUpdatedBy === DEVICE_ID) return;
 
         if (remoteVal.boards && Array.isArray(remoteVal.boards)) {
@@ -1235,10 +1861,8 @@
           isRemoteUpdating = false;
         }
       }, (error) => {
-        console.error('Firebase read error:', error);
+        console.error('Firebase read error:', err);
         document.getElementById('syncBadge').innerText = '🔴';
-        const statusText = document.getElementById('syncStatusText');
-        if (statusText) statusText.innerText = '🔴 DB 읽기 권한 또는 URL 오류';
       });
     }
 
@@ -1273,42 +1897,48 @@
       showToast(`'${syncRoomCode}' 방에 연결되었습니다 ☁️`);
     }
 
+    // ========================================================
+    // 통합 사운드 엔진 (Lazy AudioContext 초기화로 iOS Safari 호환)
+    // ========================================================
     let audioCtx = null;
-    function playMagnetSnapSound() {
+    function playSound(type = 'snap') {
       if (!appData.soundEnabled) return;
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
 
         const now = audioCtx.currentTime;
-
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(140, now);
-        osc.frequency.exponentialRampToValueAtTime(35, now + 0.05);
-
-        gain.gain.setValueAtTime(0.7, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-        osc.start(now);
-        osc.stop(now + 0.06);
 
-        const clickOsc = audioCtx.createOscillator();
-        const clickGain = audioCtx.createGain();
-        clickOsc.type = 'square';
-        clickOsc.frequency.setValueAtTime(800, now);
-        clickOsc.frequency.exponentialRampToValueAtTime(120, now + 0.02);
-
-        clickGain.gain.setValueAtTime(0.4, now);
-        clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
-
-        clickOsc.connect(clickGain);
-        clickGain.connect(audioCtx.destination);
-        clickOsc.start(now);
-        clickOsc.stop(now + 0.02);
+        if (type === 'insert') {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(1046.5, now + 0.09);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          osc.start(now);
+          osc.stop(now + 0.28);
+        } else if (type === 'clean') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, now);
+          osc.frequency.exponentialRampToValueAtTime(1480, now + 0.14);
+          gain.gain.setValueAtTime(0.09, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+          osc.start(now);
+          osc.stop(now + 0.14);
+        } else {
+          // 기본 자석 착! 타격음
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(150, now);
+          osc.frequency.exponentialRampToValueAtTime(40, now + 0.055);
+          gain.gain.setValueAtTime(0.55, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+          osc.start(now);
+          osc.stop(now + 0.06);
+        }
 
         if (navigator.vibrate) navigator.vibrate(12);
       } catch (e) {
@@ -1341,27 +1971,53 @@
           console.error(e);
         }
       } else {
-        const medalSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="#f1c40f"/><polygon points="50,22 58,38 76,40 62,54 66,72 50,62 34,72 38,54 24,40 42,38" fill="#d35400"/></svg>`;
-        const bookSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 110"><rect x="5" y="5" width="70" height="100" rx="4" fill="#ffffff" stroke="#ddd" stroke-width="2"/><rect x="12" y="14" width="56" height="40" fill="#3498db"/><text x="40" y="75" font-size="10" text-anchor="middle" font-weight="bold" fill="#2c3e50">WHITE BOOK</text></svg>`;
-
+        const badgeIconUrl = buildBadgeIconDataUrl();
         appData.boards[0].magnets = [
           {
             id: 'm1',
-            img: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(medalSvg),
-            x: 40, y: 40, width: 100, height: 100, aspect: 1, rot: 0,
-            memo: '대회 참가 기념 메달 🎖️', date: '2026.04.12', flipped: false, isBook: false, isDeco: false, pin: 'none', z: 10
+            img: badgeIconUrl,
+            x: 24, y: 24, width: 112, height: 112, aspect: 1, rot: -2,
+            memo: 'MAGNET OOK 공식 황금 월계관 뱃지 🏅', date: '2026.11.15', flipped: false, isBook: true, isDeco: false, isGame: false, pin: 'none', z: 10
           },
           {
-            id: 'm2',
-            img: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(bookSvg),
-            x: 180, y: 40, width: 90, height: 124, aspect: 90/124, rot: 0,
-            memo: '올해의 완독 책표지 📖', date: '2026.05.20', flipped: false, isBook: true, isDeco: false, pin: 'tape', z: 11
+            id: 'g1',
+            isGame: true,
+            title: '포켓몬스터 스칼렛',
+            platform: 'Switch',
+            formFactor: 'switch',
+            status: 'CLEAR',
+            is100: true,
+            color: 'shell-red',
+            time: '85시간',
+            review: '팔데아 지방 모험부터 DLC까지 완벽 클리어! 황금 홀로그램 마그넷 획득.',
+            img: makePackageArt('#dc2626', '#7f1d1d', '🔥', 'SCARLET'),
+            lastTouched: Date.now(),
+            dust: 0,
+            x: 158, y: 22, width: 92, height: 138, aspect: 92/138, rot: 2,
+            flipped: false, isBook: false, isDeco: false, pin: 'none', z: 11
+          },
+          {
+            id: 'g2',
+            isGame: true,
+            title: '엔터 더 건전',
+            platform: 'Switch',
+            formFactor: 'classic',
+            status: 'BACKLOG',
+            is100: false,
+            color: 'shell-gray',
+            time: '3시간',
+            review: '7일 이상 방치된 게임팩! 손가락으로 문질러 먼지를 털어보세요.',
+            img: makePackageArt('#52525b', '#18181b', '🔫', 'GUNGEON'),
+            lastTouched: Date.now() - (8 * 24 * 60 * 60 * 1000),
+            dust: 0.72,
+            x: 34, y: 170, width: 112, height: 130, aspect: 112/130, rot: -1,
+            flipped: false, isBook: false, isDeco: false, pin: 'none', z: 12
           }
         ];
         localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
       }
 
-      applyBg(appData.bg || 'bg-metal', false);
+      applyBg(appData.bg || 'bg-pegboard-light', false);
       document.getElementById('settingSoundToggle').checked = appData.soundEnabled !== false;
       renderCurrentBoard();
       setupInfiniteCanvas();
@@ -1397,11 +2053,11 @@
       panState.x = mobile ? 20 : window.innerWidth / 2 - 200;
       panState.y = mobile ? 70 : window.innerHeight / 2 - 150;
       updateWorldTransform();
-      playMagnetSnapSound();
+      playSound('snap');
     }
 
     // ========================================================
-    // 7. 무한 캔버스 엔진 (핀치 줌 & 두 손가락 마그넷 제스처)
+    // 7. 무한 캔버스 엔진
     // ========================================================
     function setupInfiniteCanvas() {
       boardViewport.addEventListener('wheel', (e) => {
@@ -1496,11 +2152,47 @@
       boardNameDisplay.innerText = curBoard.name;
       selectedMagnetId = null;
 
+      const allMagnets = curBoard.magnets || [];
+      const totalGames = allMagnets.filter(m => m.isGame).length;
+      const clearedGames = allMagnets.filter(m => m.isGame && m.status === 'CLEAR').length;
+      const totalPhotos = allMagnets.filter(m => !m.isGame && !m.isDeco).length;
+      document.getElementById('statsText').innerText = `게임 ${totalGames}팩 (전당 ${clearedGames}) · 추억/메달 ${totalPhotos}개`;
+
       const oldMagnets = boardWorld.querySelectorAll('.magnet-wrapper');
       oldMagnets.forEach(el => el.remove());
 
-      (curBoard.magnets || []).forEach(m => createMagnetElement(m));
+      const filteredMagnets = allMagnets.filter(m => {
+        if (currentFilter === 'ALL') return true;
+        if (currentFilter === 'PHOTO') return !m.isGame;
+        return m.isGame && m.status === currentFilter;
+      });
+
+      filteredMagnets.forEach(m => createMagnetElement(m));
       renderArchiveDrawer();
+    }
+
+    function setBoardFilter(filterType, btnEl) {
+      currentFilter = filterType;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+      playSound('snap');
+      renderCurrentBoard();
+    }
+
+    function pickRandomGamePack() {
+      const curBoard = getCurrentBoard();
+      const games = (curBoard.magnets || []).filter(m => m.isGame);
+      if (games.length === 0) {
+        showToast('먼저 [+ 팩 제작]으로 게임팩을 등록해 주세요!');
+        return;
+      }
+      const backlog = games.filter(g => g.status === 'BACKLOG');
+      const pool = backlog.length > 0 ? backlog : games;
+      const picked = pool[Math.floor(Math.random() * pool.length)];
+
+      playSound('insert');
+      openGameDetailModal(picked.id);
+      showToast(`🎲 오늘의 추천 팩: ${picked.title}`);
     }
 
     // ========================================================
@@ -1510,14 +2202,14 @@
       appData.activeBoardIndex = (appData.activeBoardIndex - 1 + appData.boards.length) % appData.boards.length;
       saveStorage(false);
       renderCurrentBoard();
-      playMagnetSnapSound();
+      playSound('snap');
     }
 
     function nextBoard() {
       appData.activeBoardIndex = (appData.activeBoardIndex + 1) % appData.boards.length;
       saveStorage(false);
       renderCurrentBoard();
-      playMagnetSnapSound();
+      playSound('snap');
     }
 
     function addNewBoard() {
@@ -1531,7 +2223,7 @@
       appData.activeBoardIndex = appData.boards.length - 1;
       saveStorage(true);
       renderCurrentBoard();
-      playMagnetSnapSound();
+      playSound('snap');
       showToast(`'${newBoard.name}' 생성됨`);
     }
 
@@ -1566,7 +2258,7 @@
       showToast(`'${deletedName}' 보드가 삭제되었습니다.`);
     }
 
-    // 유형별 분리 정렬
+    // 유형별 분리 정렬 (메인 사진/게임팩 상단, 소품 하단)
     function alignAllSplitGrid() {
       const curBoard = getCurrentBoard();
       if (!curBoard.magnets || !curBoard.magnets.length) return;
@@ -1638,7 +2330,7 @@
       });
 
       saveStorage(true);
-      playMagnetSnapSound();
+      playSound('snap');
       showToast('유형별로 깔끔하게 정렬되었습니다.');
     }
 
@@ -1656,9 +2348,10 @@
       (curBoard.magnets || []).forEach(m => {
         const item = document.createElement('div');
         item.className = 'drawer-item';
+        const label = m.isGame ? `🕹️ ${m.title}` : (m.memo || '소품');
         item.innerHTML = `
           <img src="${m.img}" alt="썸네일" />
-          <span>${m.memo || '소품'}</span>
+          <span>${label}</span>
         `;
         item.onclick = () => {
           const el = document.getElementById(m.id);
@@ -1677,12 +2370,13 @@
     }
 
     function applyBg(bgClass, syncCloud = true) {
-      boardViewport.className = bgClass;
-      appData.bg = bgClass;
+      const validBg = ['bg-pegboard-light', 'bg-pegboard', 'bg-cream'].includes(bgClass) ? bgClass : 'bg-pegboard-light';
+      boardViewport.className = validBg;
+      appData.bg = validBg;
       saveStorage(syncCloud);
 
       document.querySelectorAll('.setting-opt').forEach(el => el.classList.remove('selected'));
-      const activeOpt = document.getElementById('opt-' + bgClass.replace('bg-', ''));
+      const activeOpt = document.getElementById('opt-' + validBg.replace('bg-', ''));
       if (activeOpt) activeOpt.classList.add('selected');
     }
 
@@ -1763,26 +2457,38 @@
       const ctx = canvas.getContext('2d');
 
       if (appData.bg === 'bg-pegboard') {
-        ctx.fillStyle = '#1f2229';
+        ctx.fillStyle = '#23252b';
         ctx.fillRect(0, 0, canvasW, canvasH);
-        ctx.fillStyle = '#0d0f12';
-        for (let gx = 16; gx < canvasW; gx += 32) {
-          for (let gy = 16; gy < canvasH; gy += 32) {
+        ctx.fillStyle = '#363942';
+        for (let gx = 12; gx < canvasW; gx += 24) {
+          for (let gy = 12; gy < canvasH; gy += 24) {
             ctx.beginPath();
-            ctx.arc(gx, gy, 3.5, 0, Math.PI * 2);
+            ctx.arc(gx, gy, 2, 0, Math.PI * 2);
             ctx.fill();
           }
         }
-      } else if (appData.bg === 'bg-cork') {
-        ctx.fillStyle = '#b37e42';
+      } else if (appData.bg === 'bg-cream') {
+        ctx.fillStyle = '#f6f1e7';
         ctx.fillRect(0, 0, canvasW, canvasH);
+        ctx.fillStyle = '#e2d8c5';
+        for (let gx = 12; gx < canvasW; gx += 24) {
+          for (let gy = 12; gy < canvasH; gy += 24) {
+            ctx.beginPath();
+            ctx.arc(gx, gy, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
       } else {
-        const grad = ctx.createLinearGradient(0, 0, canvasW, canvasH);
-        grad.addColorStop(0, '#d8dce4');
-        grad.addColorStop(0.5, '#b8bcc6');
-        grad.addColorStop(1, '#9fa5b1');
-        ctx.fillStyle = grad;
+        ctx.fillStyle = '#e8e9ed';
         ctx.fillRect(0, 0, canvasW, canvasH);
+        ctx.fillStyle = '#c4c7d0';
+        for (let gx = 12; gx < canvasW; gx += 24) {
+          for (let gy = 12; gy < canvasH; gy += 24) {
+            ctx.beginPath();
+            ctx.arc(gx, gy, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
       }
 
       const sorted = [...curBoard.magnets].sort((a, b) => (a.z || 10) - (b.z || 10));
@@ -1820,6 +2526,9 @@
       showToast('보드 스냅샷이 저장되었습니다 📸');
     }
 
+    // ========================================================
+    // 10. 사물/사진 마그넷 생성 & 수정 로직
+    // ========================================================
     function openCreateModal(injectedImg = null) {
       resetCreateForm();
       if (injectedImg) processUploadedSource(injectedImg);
@@ -1840,6 +2549,7 @@
     function openSettingsModal() {
       applyBg(appData.bg, false);
       document.getElementById('roomCodeInput').value = syncRoomCode;
+      document.getElementById('dbUrlInput').value = customDbUrl;
       document.getElementById('settingsModal').classList.add('active');
     }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
@@ -2035,6 +2745,7 @@
         flipped: false,
         isBook: isBook,
         isDeco: false,
+        isGame: false,
         pin: pin,
         z: maxZ + 1
       };
@@ -2044,24 +2755,282 @@
       saveStorage(true);
       closeModal('createModal');
       renderArchiveDrawer();
-      playMagnetSnapSound();
+      playSound('snap');
     }
 
+    // ========================================================
+    // 10-B. 실물 게임팩(카트리지) 제작 · 수정 · 슬롯 상세 보기
+    // ========================================================
+    function openGameModal(editItem = null) {
+      const preview = document.getElementById('gamePreviewImg');
+      const placeholder = document.getElementById('gameUploadPlaceholder');
+
+      if (editItem) {
+        editingGameId = editItem.id;
+        document.getElementById('gameModalTitle').innerText = '🕹️ 게임팩 정보 수정';
+        document.getElementById('saveGameBtn').innerText = '수정 완료';
+        document.getElementById('gameInputTitle').value = editItem.title || '';
+        document.getElementById('gameInputPlatform').value = editItem.platform || 'Switch';
+        document.getElementById('gameInputStatus').value = editItem.status || 'BACKLOG';
+        document.getElementById('gameInputIs100').checked = !!editItem.is100;
+        document.getElementById('gameInputTime').value = editItem.time || '';
+        document.getElementById('gameInputReview').value = editItem.review || '';
+        selectGameForm(editItem.formFactor || 'classic');
+        selectGameColor(editItem.color || 'shell-gray');
+        uploadedGameImage = editItem.img || '';
+        if (uploadedGameImage) {
+          preview.src = uploadedGameImage;
+          preview.style.display = 'block';
+          placeholder.style.display = 'none';
+        }
+      } else {
+        editingGameId = null;
+        document.getElementById('gameModalTitle').innerText = '🕹️ 실물 게임팩 마그넷 제작';
+        document.getElementById('saveGameBtn').innerText = '게임팩 부착하기';
+        document.getElementById('gameInputTitle').value = '';
+        document.getElementById('gameInputPlatform').value = 'Switch';
+        document.getElementById('gameInputStatus').value = 'BACKLOG';
+        document.getElementById('gameInputIs100').checked = false;
+        document.getElementById('gameInputTime').value = '';
+        document.getElementById('gameInputReview').value = '';
+        selectGameForm('classic');
+        selectGameColor('shell-gray');
+        uploadedGameImage = '';
+        preview.style.display = 'none';
+        placeholder.style.display = 'block';
+      }
+      document.getElementById('gameModal').classList.add('active');
+    }
+
+    function selectGameForm(form) {
+      selectedGameForm = form;
+      document.getElementById('formOptClassic').classList.toggle('active', form === 'classic');
+      document.getElementById('formOptSwitch').classList.toggle('active', form === 'switch');
+      const colorSec = document.getElementById('gameColorSection');
+      colorSec.style.opacity = form === 'switch' ? '0.4' : '1';
+      colorSec.style.pointerEvents = form === 'switch' ? 'none' : 'auto';
+    }
+
+    function selectGameColor(colorClass) {
+      selectedGameColor = colorClass;
+      document.querySelectorAll('.color-dot-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.color === colorClass);
+      });
+    }
+
+    function handleGameImageUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxSize = 360;
+          let w = img.width, h = img.height;
+          if (w > h) { if (w > maxSize) { h *= maxSize / w; w = maxSize; } }
+          else { if (h > maxSize) { w *= maxSize / h; h = maxSize; } }
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          uploadedGameImage = canvas.toDataURL('image/jpeg', 0.82);
+
+          const preview = document.getElementById('gamePreviewImg');
+          preview.src = uploadedGameImage;
+          preview.style.display = 'block';
+          document.getElementById('gameUploadPlaceholder').style.display = 'none';
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function submitCreateGame() {
+      const title = document.getElementById('gameInputTitle').value.trim();
+      if (!title) {
+        showToast('게임 타이틀을 입력해 주세요!');
+        return;
+      }
+
+      const platform = document.getElementById('gameInputPlatform').value;
+      const status = document.getElementById('gameInputStatus').value;
+      const is100 = document.getElementById('gameInputIs100').checked;
+      const time = document.getElementById('gameInputTime').value.trim() || '미플레이';
+      const review = document.getElementById('gameInputReview').value.trim();
+      const isSwitch = selectedGameForm === 'switch';
+      const w = isSwitch ? 92 : 114;
+      const h = isSwitch ? 138 : 132;
+
+      const finalImg = uploadedGameImage || makePackageArt(
+        status === 'CLEAR' ? '#d97706' : (status === 'PLAYING' ? '#059669' : '#3f3f46'),
+        '#18181b',
+        isSwitch ? '🕹️' : '👾',
+        platform.toUpperCase()
+      );
+
+      const curBoard = getCurrentBoard();
+      if (!curBoard.magnets) curBoard.magnets = [];
+
+      if (editingGameId) {
+        const target = curBoard.magnets.find(m => m.id === editingGameId);
+        if (target) {
+          target.title = title;
+          target.platform = platform;
+          target.formFactor = selectedGameForm;
+          target.status = status;
+          target.is100 = is100;
+          target.color = selectedGameColor;
+          target.time = time;
+          target.review = review;
+          target.img = finalImg;
+          target.width = w;
+          target.height = h;
+          target.aspect = w / h;
+          target.lastTouched = Date.now();
+          target.dust = 0;
+        }
+        renderCurrentBoard();
+        showToast('게임팩 정보가 수정되었습니다.');
+      } else {
+        const centerX = Math.round((-panState.x + window.innerWidth / 2) / panState.scale);
+        const centerY = Math.round((-panState.y + window.innerHeight / 2) / panState.scale);
+        const maxZ = curBoard.magnets.reduce((max, m) => Math.max(max, m.z || 1), 10);
+
+        const newGame = {
+          id: 'game_' + Date.now(),
+          isGame: true,
+          title,
+          platform,
+          formFactor: selectedGameForm,
+          status,
+          is100,
+          color: selectedGameColor,
+          time,
+          review,
+          img: finalImg,
+          lastTouched: Date.now(),
+          dust: 0,
+          x: centerX - Math.round(w / 2),
+          y: centerY - Math.round(h / 2),
+          width: w,
+          height: h,
+          aspect: w / h,
+          rot: Math.floor(Math.random() * 5) - 2,
+          flipped: false,
+          isBook: false,
+          isDeco: false,
+          pin: 'none',
+          z: maxZ + 1
+        };
+
+        curBoard.magnets.push(newGame);
+        createMagnetElement(newGame);
+        showToast(`[${title}] 게임팩이 보드에 착! 붙었습니다.`);
+      }
+
+      saveStorage(true);
+      playSound('snap');
+      closeModal('gameModal');
+      renderArchiveDrawer();
+    }
+
+    function openGameDetailModal(id) {
+      const item = getCurrentBoard().magnets.find(m => m.id === id && m.isGame);
+      if (!item) return;
+      activeGameDetailId = id;
+      item.lastTouched = Date.now();
+      item.dust = 0;
+
+      const el = document.getElementById(id);
+      if (el) el.querySelector('.dust-overlay')?.remove();
+
+      playSound('insert');
+
+      const banner = document.getElementById('gameDetailBanner');
+      const emoji = document.getElementById('gameDetailEmoji');
+      if (item.img) {
+        banner.style.backgroundImage = `url('${item.img}')`;
+        emoji.style.display = 'none';
+      } else {
+        banner.style.backgroundImage = 'none';
+        emoji.style.display = 'block';
+      }
+
+      const badge = document.getElementById('gameDetailBadge');
+      badge.textContent = item.status === 'CLEAR' ? '★ CLEAR' : (item.status === 'PLAYING' ? 'PLAYING' : 'BACKLOG');
+      badge.className = `status-pill status-${item.status}`;
+      badge.style.top = '12px';
+      badge.style.right = '12px';
+      badge.style.fontSize = '10px';
+      badge.style.padding = '4px 8px';
+
+      document.getElementById('gameDetailPlatform').textContent = item.platform || 'Switch';
+      document.getElementById('gameDetailTime').textContent = item.time || '미플레이';
+      document.getElementById('gameDetailTitle').textContent = item.title;
+      document.getElementById('gameDetailReview').textContent = item.review || '등록된 한줄평이 없습니다.';
+
+      document.getElementById('gameDetailModal').classList.add('active');
+    }
+
+    function openActiveGameDetail() {
+      if (selectedMagnetId) {
+        const m = getCurrentBoard().magnets.find(x => x.id === selectedMagnetId);
+        if (m && m.isGame) openGameDetailModal(m.id);
+      }
+    }
+
+    function cycleActiveGameStatus() {
+      const item = getCurrentBoard().magnets.find(m => m.id === activeGameDetailId);
+      if (!item) return;
+      const order = ['BACKLOG', 'PLAYING', 'CLEAR'];
+      item.status = order[(order.indexOf(item.status) + 1) % order.length];
+      item.lastTouched = Date.now();
+      item.dust = 0;
+      saveStorage(true);
+      renderCurrentBoard();
+      openGameDetailModal(item.id);
+      showToast(`상태가 [${item.status}]로 변경되었습니다!`);
+    }
+
+    function editActiveGame() {
+      const item = getCurrentBoard().magnets.find(m => m.id === activeGameDetailId);
+      if (!item) return;
+      closeModal('gameDetailModal');
+      openGameModal(item);
+    }
+
+    function deleteActiveGame() {
+      if (!activeGameDetailId) return;
+      closeModal('gameDetailModal');
+      deleteMagnet(activeGameDetailId);
+    }
+
+    // ========================================================
+    // 10-C. 소품 & 게임 배지 추가
+    // ========================================================
     function submitCreateDeco() {
       const type = document.getElementById('decoSelect').value;
       const textVal = document.getElementById('stickerTextInput').value.trim() || 'MEMO';
 
       let rawSvg = '';
       let isText = false;
-      let w = 80, h = 40;
+      let w = 84, h = 36;
 
-      if (type.startsWith('tape_')) {
+      const gameBadgeMap = {
+        badge_goty: { text: '🏆 GOTY', bg: '#facc15', fg: '#422006' },
+        badge_godgame: { text: '🔥 인생 갓겜', bg: '#f43f5e', fg: '#ffffff' },
+        badge_tears: { text: '😭 눈물 주의', bg: '#0284c7', fg: '#ffffff' },
+        badge_unseal: { text: '💤 봉인 해제', bg: '#7e22ce', fg: '#ffffff' },
+        badge_first: { text: '⚡ 초회판', bg: '#18181b', fg: '#facc15' }
+      };
+
+      if (gameBadgeMap[type]) {
+        const b = gameBadgeMap[type];
+        w = 96; h = 32;
+        rawSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 36"><rect x="2" y="2" width="106" height="32" rx="16" fill="${b.bg}" stroke="#ffffff" stroke-width="2"/><text x="55" y="22" font-family="-apple-system, sans-serif" font-size="12" font-weight="900" fill="${b.fg}" text-anchor="middle">${b.text}</text></svg>`;
+      } else if (type.startsWith('tape_')) {
         w = 90; h = 32;
-        const colors = {
-          tape_yellow: '#f6e58d',
-          tape_mint: '#7bed9f',
-          tape_pink: '#ff9ff3'
-        };
+        const colors = { tape_yellow: '#f6e58d', tape_mint: '#7bed9f', tape_pink: '#ff9ff3' };
         const c = colors[type] || '#f6e58d';
         rawSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 36"><rect width="100" height="36" rx="4" fill="${c}" fill-opacity="0.85"/><line x1="2" y1="0" x2="2" y2="36" stroke="#333" stroke-dasharray="2 2" stroke-opacity="0.3"/><line x1="98" y1="0" x2="98" y2="36" stroke="#333" stroke-dasharray="2 2" stroke-opacity="0.3"/></svg>`;
       } else if (type.startsWith('text_')) {
@@ -2099,11 +3068,12 @@
         height: h,
         aspect: w / h,
         rot: Math.floor(Math.random() * 8) - 4,
-        memo: isText ? textVal : '소품 스티커',
+        memo: isText ? textVal : (gameBadgeMap[type]?.text || '소품 스티커'),
         date: '',
         flipped: false,
         isBook: false,
         isDeco: true,
+        isGame: false,
         pin: 'none',
         z: maxZ + 2
       };
@@ -2113,14 +3083,17 @@
       saveStorage(true);
       closeModal('decoModal');
       document.getElementById('stickerTextInput').value = '';
-      playMagnetSnapSound();
+      playSound('snap');
     }
 
     function openEditModal(id) {
-      editingMagnetId = id;
       const target = getCurrentBoard().magnets.find(m => m.id === id);
       if (!target) return;
-
+      if (target.isGame) {
+        openGameModal(target);
+        return;
+      }
+      editingMagnetId = id;
       document.getElementById('editMagnetMemo').value = target.memo || '';
       document.getElementById('editPinStyle').value = target.pin || 'none';
       document.getElementById('editModal').classList.add('active');
@@ -2143,10 +3116,13 @@
       }
     }
 
+    // ========================================================
+    // 11. DOM 렌더링 (사물 마그넷 + 실물 게임팩 통합)
+    // ========================================================
     function createMagnetElement(data) {
       const el = document.createElement('div');
       const pinClass = data.pin === 'tape' ? 'pin-tape' : (data.pin === 'dot' ? 'pin-dot' : '');
-      el.className = `magnet-wrapper ${data.flipped ? 'flipped' : ''} ${data.isBook ? 'is-book' : ''} ${data.isDeco ? 'is-deco' : ''} ${pinClass}`;
+      el.className = `magnet-wrapper ${data.flipped ? 'flipped' : ''} ${data.isBook ? 'is-book' : ''} ${data.isDeco ? 'is-deco' : ''} ${data.isGame ? 'is-game' : ''} ${pinClass}`;
       el.id = data.id;
       el.style.left = `${data.x}px`;
       el.style.top = `${data.y}px`;
@@ -2155,9 +3131,92 @@
       el.style.zIndex = data.z || 10;
       el.style.transform = `rotate(${data.rot || 0}deg)`;
 
+      let frontContentHtml = '';
+
+      if (data.isGame) {
+        // 7일 방치 먼지 계산
+        if (!data.lastTouched) data.lastTouched = Date.now();
+        const elapsed = Date.now() - data.lastTouched;
+        if (elapsed >= SEVEN_DAYS_MS) {
+          if (data.dust === undefined || data.dust === 0) {
+            const extraDays = (elapsed - SEVEN_DAYS_MS) / (24 * 60 * 60 * 1000);
+            data.dust = Math.min(0.95, 0.55 + extraDays * 0.1);
+          }
+        } else {
+          data.dust = 0;
+        }
+
+        const isClear = data.status === 'CLEAR';
+        const isSwitch = data.formFactor === 'switch';
+        const statusLabel = isClear ? 'CLEAR★' : (data.status === 'PLAYING' ? 'PLAY' : 'TODO');
+        const artStyle = data.img ? `background-image: url('${data.img}')` : '';
+        const seal100Html = data.is100 ? `<span class="seal-100">💯 100%</span>` : '';
+        const hasDust = (data.dust || 0) > 0.15;
+        const dustHtml = hasDust ? `
+          <div class="dust-overlay" style="opacity: ${data.dust};">
+            <span class="dust-tag">7일 방치 · 문질러서 먼지 털기</span>
+          </div>
+        ` : '';
+
+        if (isSwitch) {
+          frontContentHtml = `
+            <div class="cartridge-body form-switch ${isClear ? 'is-clear' : ''}">
+              ${dustHtml}
+              <div class="cart-header" style="height: 10px;">
+                <div class="cart-emboss-plate" style="height: 8px; font-size: 4.5px;">NINTENDO SWITCH</div>
+              </div>
+              <div class="cart-label-recess">
+                <div class="cart-label">
+                  <div class="switch-top-band">
+                    <span>NSW</span>
+                    <span>${statusLabel}</span>
+                  </div>
+                  <div class="cart-art" style="${artStyle}"></div>
+                  ${seal100Html}
+                  <div class="cart-title-strip">${data.title}</div>
+                </div>
+              </div>
+              <div class="cart-bottom-hardware">
+                <div class="cart-arrow" style="border-top-color: rgba(255,255,255,0.25);"></div>
+              </div>
+            </div>
+          `;
+        } else {
+          frontContentHtml = `
+            <div class="cartridge-body ${data.color || 'shell-gray'} ${isClear ? 'is-clear' : ''}">
+              ${dustHtml}
+              <div class="cart-header">
+                <div class="cart-side-ribs"></div>
+                <div class="cart-emboss-plate">GAME PAK</div>
+                <div class="cart-side-ribs"></div>
+              </div>
+              <div class="cart-label-recess">
+                <div class="cart-label">
+                  <span class="status-pill status-${data.status}">${statusLabel}</span>
+                  <div class="cart-art" style="${artStyle}"></div>
+                  ${seal100Html}
+                  <div class="cart-title-strip">${data.title}</div>
+                </div>
+              </div>
+              <div class="cart-bottom-hardware">
+                <div class="cart-arrow"></div>
+                <div class="gold-pins-slot">
+                  <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      } else {
+        frontContentHtml = `<img src="${data.img}" alt="마그넷" />`;
+      }
+
+      const flipIcon = data.isGame ? '🕹️' : '↩️';
+      const flipTitle = data.isGame ? '콘솔 슬롯 실행' : '뒤집기 (메모)';
+
       el.innerHTML = `
         <div class="transform-box">
-          <div class="tb-handle handle-flip" title="뒤집기 (메모)">↩️</div>
+          <div class="tb-handle handle-flip" title="${flipTitle}">${flipIcon}</div>
           <div class="tb-handle handle-delete" title="삭제">✕</div>
           <div class="tb-handle handle-scale" title="크기">⤡</div>
           <div class="tb-handle handle-rotate" title="회전 (더블클릭시 0도 리셋)">🔄</div>
@@ -2167,7 +3226,7 @@
         </div>
         <div class="magnet-card">
           <div class="magnet-front">
-            <img src="${data.img}" alt="마그넷" />
+            ${frontContentHtml}
           </div>
           <div class="magnet-back">
             <div class="back-magnet-texture">
@@ -2202,12 +3261,17 @@
       if (e) e.stopPropagation();
       const targetData = getCurrentBoard().magnets.find(m => m.id === id);
       const el = document.getElementById(id);
-      if (targetData && el && !targetData.isDeco) {
-        targetData.flipped = !targetData.flipped;
-        el.classList.toggle('flipped', targetData.flipped);
-        saveStorage(true);
-        playMagnetSnapSound();
+      if (!targetData || !el || targetData.isDeco) return;
+
+      if (targetData.isGame) {
+        openGameDetailModal(id);
+        return;
       }
+
+      targetData.flipped = !targetData.flipped;
+      el.classList.toggle('flipped', targetData.flipped);
+      saveStorage(true);
+      playSound('snap');
     }
 
     function deleteMagnet(id, e) {
@@ -2227,10 +3291,10 @@
 
       isMagnetInteracting = false;
       saveStorage(true);
-      renderArchiveDrawer();
-      selectedMagnetId = null;
+      renderCurrentBoard();
 
-      showToast(deletedItem.isDeco ? '소품이 삭제되었습니다.' : '마그넷이 삭제되었습니다.', true);
+      const label = deletedItem.isGame ? '게임팩' : (deletedItem.isDeco ? '소품' : '마그넷');
+      showToast(`${label}이 삭제되었습니다.`, true);
     }
 
     function undoLastDelete() {
@@ -2244,7 +3308,7 @@
           createMagnetElement(lastDeletedRecord.item);
           renderArchiveDrawer();
         }
-        playMagnetSnapSound();
+        playSound('snap');
       }
       lastDeletedRecord = null;
       document.getElementById('toastBar').classList.remove('show');
@@ -2264,7 +3328,7 @@
     }
 
     // ========================================================
-    // 10. 인터랙션 엔진 (드래그, 스마트 세트 이동, 투 핑거 핀치/회전)
+    // 12. 인터랙션 엔진 (드래그, 먼지 털기, 슬롯 삽입, 투 핑거)
     // ========================================================
     function attachMagnetEvents(el, data) {
       const rotateHandle = el.querySelector('.handle-rotate');
@@ -2307,25 +3371,19 @@
       let lastTap = 0;
       el.addEventListener('touchend', (e) => {
         if (e.target.closest('.transform-box')) return;
-        const curTime = new Date().getTime();
+        const curTime = Date.now();
         const tapLen = curTime - lastTap;
         if (tapLen < 300 && tapLen > 0) {
-          if (data.isDeco) {
-            deleteMagnet(data.id, e);
-          } else {
-            flipMagnet(data.id, e);
-          }
+          if (data.isDeco) deleteMagnet(data.id, e);
+          else flipMagnet(data.id, e);
         }
         lastTap = curTime;
       });
 
       el.addEventListener('dblclick', (e) => {
         if (e.target.closest('.transform-box')) return;
-        if (data.isDeco) {
-          deleteMagnet(data.id, e);
-        } else {
-          flipMagnet(data.id, e);
-        }
+        if (data.isDeco) deleteMagnet(data.id, e);
+        else flipMagnet(data.id, e);
       });
     }
 
@@ -2396,6 +3454,7 @@
       selectMagnet(el);
 
       isMagnetInteracting = true;
+      let hasMoved = false;
 
       clearTimeout(pressTimer);
       pressTimer = setTimeout(() => {
@@ -2453,6 +3512,36 @@
 
         const cx = evt.type === 'touchmove' ? evt.touches[0].clientX : evt.clientX;
         const cy = evt.type === 'touchmove' ? evt.touches[0].clientY : evt.clientY;
+
+        if (Math.abs(cx - startClientX) > 4 || Math.abs(cy - startClientY) > 4) {
+          hasMoved = true;
+        }
+
+        // 게임팩 7일 방치 먼지 털기 효과
+        if (hasMoved && data.isGame && data.dust > 0) {
+          const dustEl = el.querySelector('.dust-overlay');
+          if (dustEl) {
+            data.dust = Math.max(0, data.dust - 0.045);
+            dustEl.style.opacity = data.dust;
+            if (data.dust <= 0.15) {
+              data.dust = 0;
+              data.lastTouched = Date.now();
+              dustEl.remove();
+              playSound('clean');
+              showToast(`✨ [${data.title}]의 먼지를 깨끗이 털었습니다!`);
+            }
+          }
+        }
+
+        // 게임팩을 하단 콘솔 슬롯 근처로 끌어왔는지 감지
+        if (data.isGame) {
+          const slotRect = consoleSlot.getBoundingClientRect();
+          if (cy >= slotRect.top - 22 && cx >= slotRect.left - 30 && cx <= slotRect.right + 30) {
+            consoleSlot.classList.add('drag-over');
+          } else {
+            consoleSlot.classList.remove('drag-over');
+          }
+        }
 
         const deltaWorldX = (cx - startClientX) / panState.scale;
         const deltaWorldY = (cy - startClientY) / panState.scale;
@@ -2521,12 +3610,29 @@
         el.classList.remove('dragging');
         hideGuides();
 
+        const droppedInSlot = data.isGame && consoleSlot.classList.contains('drag-over');
+        consoleSlot.classList.remove('drag-over');
+
         isMagnetInteracting = false;
 
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('touchmove', onMove);
         window.removeEventListener('mouseup', onEnd);
         window.removeEventListener('touchend', onEnd);
+
+        if (droppedInSlot) {
+          data.x = startLeft;
+          data.y = startTop;
+          el.style.left = `${data.x}px`;
+          el.style.top = `${data.y}px`;
+          saveStorage(true);
+          openGameDetailModal(data.id);
+          return;
+        }
+
+        if (hasMoved && data.isGame) {
+          data.lastTouched = Date.now();
+        }
 
         triggerSnap(el);
         saveStorage(true);
@@ -2670,7 +3776,7 @@
       el.classList.remove('snapping');
       void el.offsetWidth;
       el.classList.add('snapping');
-      playMagnetSnapSound();
+      playSound('snap');
     }
 
     function showGuideX(y) { snapGuideX.style.top = `${y}px`; snapGuideX.style.display = 'block'; }
