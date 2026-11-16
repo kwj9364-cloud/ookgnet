@@ -2085,7 +2085,7 @@
       window.addEventListener('mousemove', (e) => {
         if (!panState.isPanning || isMagnetInteracting) return;
         panState.x = e.clientX - panState.startX;
-        panState.y = e.clientY - panState.startY;
+        panState.y = e.clientY - panState.y;
         updateWorldTransform();
       });
 
@@ -2132,7 +2132,7 @@
           updateWorldTransform();
         } else if (e.touches.length === 1) {
           panState.x = e.touches[0].clientX - panState.startX;
-          panState.y = e.touches[0].clientY - panState.startY;
+          panState.y = e.touches[0].clientY - panState.y;
           updateWorldTransform();
         }
       }, { passive: false });
@@ -2413,7 +2413,7 @@
           if (imported && Array.isArray(imported.boards) && imported.boards.length > 0) {
             appData = imported;
             saveStorage(true);
-            applyBg(appData.bg || 'bg-metal', false);
+            applyBg(appData.bg || 'bg-pegboard-light', false);
             renderCurrentBoard();
             closeModal('settingsModal');
             showToast('백업 데이터를 불러오고 클라우드에 동기화했습니다.');
